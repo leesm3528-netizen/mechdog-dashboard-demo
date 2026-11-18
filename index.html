@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MechDog 현장 관제</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.badge.demo { color: #ffd88a; border-color: rgba(240, 178, 50, .45); background: rgba(240, 178, 50, .1); }
+.badge.demo::before { background: var(--warn); }
+.demo-voice { display: flex; gap: 6px; margin-top: 8px; }
+.demo-voice input { flex: 1; min-width: 0; color: var(--text); background: rgba(255, 255, 255, .05); border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 13px; }
+.demo-voice button { padding: 6px 12px; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+<header>
+  <div class="head-left">
+    <h1>현장 관제 <small>MechDog</small></h1>
+    <nav class="modes" role="tablist">
+      <button class="mode on" data-mode="monitor" role="tab">관제</button>
+      <button class="mode" data-mode="editor" role="tab">지도 편집</button>
+    </nav>
+  </div>
+  <div class="badges">
+    <span class="badge demo">데모 · 가짜 로봇 4대</span>
+    <span id="wsBadge" class="badge">서버 연결 중</span>
+    <span id="mqttBadge" class="badge">MQTT ?</span>
+    <span id="llmBadge" class="badge">LLM ?</span>
+  </div>
+</header>
+
+<section class="stages card">
+  <div class="stage-row" id="stages"></div>
+  <div id="stageText" class="muted">공정 상태 없음</div>
+</section>
+
+<main class="grid">
+  <section class="card">
+    <h2>로봇</h2>
+    <div id="robots" class="robots"></div>
+  </section>
+
+  <section class="card view-card">
+    <h2>
+      <span class="seg" role="tablist"><button class="on" data-view="twin" role="tab">현장 트윈</button><button data-view="cam" role="tab">카메라</button></span>
+      <span id="twinInfo" class="twin-info"></span>
+      <span class="cam-actions hidden" id="camActions"><button id="camAllOn" class="secondary small-btn">모두 켜기</button><button id="camAllOff" class="secondary small-btn">모두 끄기</button></span>
+    </h2>
+    <div id="twinView" class="twin-wrap">
+      <svg id="twinSvg" aria-label="현장 디지털 트윈"></svg>
+      <div id="twinMsg" class="cam-msg hidden"></div>
+    </div>
+    <div id="camView" class="hidden cam-view">
+      <div id="camGrid" class="cam-grid"></div>
+      <div class="muted small cam-hint">화면을 누르면 크게 보기 · 다시 누르면 4분할</div>
+    </div>
+  </section>
+
+  <section class="card controls">
+    <h2>명령</h2>
+    <button id="btnStop" class="stop">정지<small>Space</small></button>
+    <div class="cmds">
+      <button data-cmd="start">작업 시작</button>
+      <button data-cmd="approve">승인</button>
+      <button data-cmd="pause">일시정지</button>
+      <button data-cmd="resume">재개</button>
+      <button data-cmd="status" class="secondary">로봇 상태</button>
+      <button data-cmd="warmup" class="secondary">준비운동</button>
+    </div>
+
+    <h2>음성</h2>
+    <button id="mic" class="mic">🎤 누르고 말하기<small>V 키를 누르고 있어도 됨</small></button>
+    <form id="demoVoice" class="demo-voice"><input id="demoVoiceText" type="text" placeholder="마이크 대신 입력: 예) 잠깐 멈춰" autocomplete="off"><button type="submit" class="secondary">말하기</button></form>
+    <div id="heard" class="heard muted">—</div>
+    <div id="confirm" class="confirm hidden">
+      <div id="confirmText"></div>
+      <div class="row">
+        <button id="yes">실행</button>
+        <button id="no" class="secondary">취소</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card logcard">
+    <h2>기록</h2>
+    <ul id="log" class="log"></ul>
+  </section>
+</main>
+
+<main id="editor" class="editor hidden">
+  <!-- 왼쪽: 지도 관리 -->
+  <section class="card ed-maps">
+    <h2>지도 <button id="mapNew" class="small-btn">+ 새 지도</button></h2>
+    <ul id="mapList" class="map-list"></ul>
+    <h2 class="mt">버전 <span id="verName" class="muted"></span></h2>
+    <ul id="verList" class="ver-list"></ul>
+    <div class="ed-actions">
+      <button id="mapSave" class="primary-btn">저장 <small>Ctrl+S</small></button>
+      <button id="mapApply" class="apply">현재 지도로 적용</button>
+    </div>
+    <div id="mapStatus" class="muted small status"></div>
+  </section>
+
+  <!-- 가운데: 도구 + 캔버스 -->
+  <section class="card ed-canvas">
+    <div class="toolbar">
+      <div class="tools" id="tools">
+        <button data-tool="select" class="tool on" title="선택·이동 (S)">선택</button>
+        <span class="tsep"></span>
+        <button data-tool="work" class="tool" title="작업구역"><i class="sw" style="--c:#3987e5"></i>작업구역</button>
+        <button data-tool="material" class="tool" title="자재"><i class="sw" style="--c:#c98500"></i>자재</button>
+        <button data-tool="obstacle" class="tool" title="장애물"><i class="sw" style="--c:#e66767"></i>장애물</button>
+        <button data-tool="target" class="tool" title="목표 시공 구역"><i class="sw" style="--c:#199e70"></i>목표 시공</button>
+        <span class="tsep"></span>
+        <button data-tool="wall" class="tool" title="벽·경계선 (선)"><i class="sw line" style="--c:#c3c2b7"></i>벽</button>
+        <button data-tool="plank" class="tool" title="판대기 보관 위치"><i class="sw" style="--c:#d95926"></i>판대기</button>
+        <button data-tool="robot_start" class="tool" title="로봇 출발 위치"><i class="sw round" style="--c:#9085e9"></i>로봇 출발</button>
+      </div>
+      <div class="shapes" id="shapes">
+        <button data-shape="rect" class="shape on" title="사각형">▭</button>
+        <button data-shape="polygon" class="shape" title="다각형 (점 찍고 더블클릭으로 끝)">⬠</button>
+        <button data-shape="circle" class="shape" title="원 (가운데에서 끌기)">◯</button>
+      </div>
+      <div class="tb-right">
+        <button id="undo" class="icon-btn" title="되돌리기 (Ctrl+Z)">↶</button>
+        <button id="redo" class="icon-btn" title="다시 하기 (Ctrl+Y)">↷</button>
+        <label class="snap"><input id="snapOn" type="checkbox" checked> 5 cm 맞춤</label>
+      </div>
+    </div>
+    <div class="canvas-wrap"><svg id="edSvg" aria-label="지도 편집"></svg></div>
+    <div class="canvas-foot"><span id="edHint" class="muted small"></span><span id="edCursor" class="muted small coord">—</span></div>
+  </section>
+
+  <!-- 오른쪽: 지도 설정·선택 항목·검사 -->
+  <section class="card ed-props">
+    <h2>지도 설정</h2>
+    <div class="form">
+      <label>이름 <input id="mName" type="text" maxlength="40"></label>
+      <div class="two">
+        <label>가로 m <input id="mW" type="number" min="0.2" max="20" step="0.1"></label>
+        <label>세로 m <input id="mH" type="number" min="0.2" max="20" step="0.1"></label>
+      </div>
+      <div class="bg-row">
+        <label class="file-btn small-btn"><input id="bgFile" type="file" accept="image/png">배경 PNG</label>
+        <button id="bgClear" class="small-btn secondary">배경 없음</button>
+        <label class="snap"><input id="bgShow" type="checkbox" checked> 보이기</label>
+      </div>
+      <div id="bgNote" class="muted small"></div>
+    </div>
+    <h2 class="mt">선택 항목</h2>
+    <div id="propBox" class="form props"><div class="muted small">지도에서 항목을 누르세요</div></div>
+    <h2 class="mt">검사 <span id="chkBadge" class="chk"></span></h2>
+    <ul id="chkList" class="chk-list"></ul>
+  </section>
+</main>
+</div>
+
+<script src="demo-backend.js"></script>
+<script src="map-core.js"></script>
+<script src="app.js"></script>
+<script src="twin.js"></script>
+<script src="editor.js"></script>
+</body>
+</html>
