@@ -40,6 +40,7 @@ function onMsg(m) {
   else if (m.type === "mqtt") badge("mqttBadge", m.ok ? "MQTT 연결" : "MQTT 끊김", m.ok);
   else if (m.type === "log") addLog(m);
   else if (m.type === "interpretation") onInterpretation(m);
+  else if (m.type === "ack") onAck(m);
 }
 
 // ---------------------------------------------------------------- 로봇 카드
@@ -70,8 +71,31 @@ function updateRobot(id, d) {
   el.querySelector(".volt").textContent = v === null ? "— V" :
     `${v.toFixed(2)} V` + (cls === "bad" ? " 교체!" : cls === "low" ? " 주의" : "");
   el.querySelector(".meta").textContent = stateText;
-  el.querySelector(".tags").innerHTML = tel.estop ? `<span class="tag estop">정지 ${tel.estop_reason || ""}</span>` : "";
+  el.querySelector(".tags").innerHTML = (d.fallen ? `<span class="tag fall">⚠ 넘어짐</span>` : "") +
+    (tel.estop ? `<span class="tag estop">정지 ${tel.estop_reason || ""}</span>` : "");
+  el.classList.toggle("fallen", !!d.fallen);
+  showFalls();
 }
+
+// ---------------------------------------------------------------- 넘어짐 경고
+// 넘어진 로봇이 있으면 WARNING 표지판을 띄운다. '확인' 은 지금 넘어진 로봇들만 숨김 — 다른 로봇이 넘어지거나
+// 같은 로봇이 일어섰다가 다시 넘어지면 또 뜬다.
+const fallAcked = new Set();
+function showFalls() {
+  const fallen = cfg.robots.filter((r) => robots[r.robot_id] && robots[r.robot_id].fallen);
+  for (const id of [...fallAcked]) if (!fallen.some((r) => r.robot_id === id)) fallAcked.delete(id);
+  const fresh = fallen.filter((r) => !fallAcked.has(r.robot_id));
+  $("fallAlert").classList.toggle("hidden", fresh.length === 0);
+  if (!fresh.length) return;
+  $("fallText").textContent = fresh.map((r) => {
+    const t = robots[r.robot_id].tilt_deg;
+    return `${r.name || r.robot_id} 넘어짐` + (typeof t === "number" ? ` (기울기 ${t}°)` : "");
+  }).join(" · ") + " — 주변 확인 후 세워 주세요";
+}
+$("fallAck").onclick = () => {
+  cfg.robots.forEach((r) => { if (robots[r.robot_id] && robots[r.robot_id].fallen) fallAcked.add(r.robot_id); });
+  showFalls();
+};
 
 // ---------------------------------------------------------------- 공정 단계
 function showProcess(p) {
@@ -120,16 +144,19 @@ $("camAllOn").onclick = () => cfg.robots.forEach((r) => camOn(r.robot_id, true))
 $("camAllOff").onclick = () => cfg.robots.forEach((r) => camOn(r.robot_id, false));
 
 // ---------------------------------------------------------------- 명령
-function request(command, source, text) {
+function request(command, source, text, robots, label) {
   if (NEED_CONFIRM.has(command)) {
-    pending = { command, source, text };
-    $("confirmText").textContent = `"${LABEL[command]}" 을(를) 실행할까요?` + (text ? `  (들은 말: ${text})` : "");
+    pending = { command, source, text, robots };
+    $("confirmText").textContent = `"${label || LABEL[command]}" 을(를) 실행할까요?` + (text ? `  (들은 말: ${text})` : "");
     $("confirm").classList.remove("hidden");
-  } else send({ type: "command", command, source, text });
+  } else send({ type: "command", command, source, text, robots });
 }
 function confirmYes() {
   if (!pending) return;
-  send({ type: "command", ...pending }); pending = null; $("confirm").classList.add("hidden");
+  const uid = pending.source === "voice" && lat && !lat.done ? lat.uid : undefined;
+  send({ type: "command", ...pending, uid });
+  if (uid) latConfirmed(pending.command);
+  pending = null; $("confirm").classList.add("hidden");
 }
 function confirmNo() { pending = null; $("confirm").classList.add("hidden"); }
 $("yes").onclick = confirmYes; $("no").onclick = confirmNo;
@@ -142,16 +169,21 @@ let rec = null, listening = false, finalText = "";
 if (!SR) { $("mic").disabled = true; $("heard").textContent = "이 브라우저는 음성 인식을 지원하지 않습니다 (Chrome 사용)"; }
 else {
   rec = new SR(); rec.lang = "ko-KR"; rec.interimResults = true; rec.continuous = true;
+  rec.onaudiostart = () => latMark("audio");
+  rec.onspeechstart = () => latMark("speech");
+  rec.onspeechend = () => latMark("speechEnd");
   rec.onresult = (e) => {
+    latMark("first");
     let interim = ""; finalText = "";
     for (let i = 0; i < e.results.length; i++) {
       const r = e.results[i];
       if (r.isFinal) finalText += r[0].transcript; else interim += r[0].transcript;
     }
     $("heard").textContent = (finalText + interim) || "…";
+    if (finalText && lat && !lat.sent) lat.final = performance.now();   // 마지막 확정 결과가 나온 시각
     // 정지는 손을 떼기 전이라도 바로 보낸다
     if (/정지|멈춰|멈추|스톱|스탑|그만/.test(finalText + interim) && !/일시/.test(finalText + interim)) {
-      if (!rec._stopSent) { rec._stopSent = true; send({ type: "voice", text: finalText + interim }); }
+      if (!rec._stopSent) { rec._stopSent = true; latSent(true); send({ type: "voice", text: finalText + interim, uid: lat && lat.uid }); }
     }
   };
   rec.onerror = (e) => { $("heard").textContent = "음성 인식 오류: " + e.error + (e.error === "not-allowed" ? " (마이크 권한 허용)" : ""); };
@@ -159,24 +191,74 @@ else {
     if (listening) { try { rec.start(); } catch (_) {} return; }  // 누르고 있는 동안 끊기면 다시 듣기
     $("mic").classList.remove("on");
     const t = finalText.trim() || $("heard").textContent.trim();
-    if (!rec._stopSent && t && t !== "…" && t !== "—") send({ type: "voice", text: t });
+    if (!rec._stopSent && t && t !== "…" && t !== "—" && t !== "듣는 중…") { latSent(false); send({ type: "voice", text: t, uid: lat && lat.uid }); }
   };
 }
 function micDown() {
   if (!rec || listening) return;
   listening = true; finalText = ""; rec._stopSent = false; confirmNo();
+  lat = { uid: "v" + Date.now().toString(36), press: performance.now() };
   $("heard").textContent = "듣는 중…"; $("mic").classList.add("on");
   try { rec.start(); } catch (_) {}
 }
-function micUp() { if (!rec || !listening) return; listening = false; rec.stop(); }
+function micUp() { if (!rec || !listening) return; listening = false; latMark("release"); rec.stop(); }
 $("mic").addEventListener("pointerdown", micDown);
 $("mic").addEventListener("pointerup", micUp);
 $("mic").addEventListener("pointerleave", micUp);
 
 function onInterpretation(m) {
+  latInterpreted(m);
   if (!m.command) { $("heard").textContent = `"${m.text}" → 명령 아님${m.note ? " (" + m.note + ")" : ""}`; return; }
   $("heard").textContent = `"${m.text}" → ${m.label} (${m.via === "llm" ? "LLM" : "규칙"})`;
-  if (!m.immediate) request(m.command, "voice", m.text);   // 즉시 명령은 서버가 이미 실행
+  if (!m.immediate) request(m.command, "voice", m.text, m.robots, m.label);   // 즉시 명령은 서버가 이미 실행
+}
+
+// ---------------------------------------------------------------- 음성 지연 측정
+// 마이크 누름 → 마이크 열림 → 말 시작 → 첫 글자 → (말 끝/손 뗌) → 확정 → 서버 해석 → 로봇 응답(command_result).
+// 총 시간 = 말을 끝낸 순간(브라우저 speechend, 없으면 손 뗀 순간)부터 결과가 나올 때까지. 사람이 '실행'을 누르는 시간은 뺀다.
+// "정지"처럼 말하는 도중 바로 보낸 경우는 말 시작부터 잰다.
+let lat = null;
+const ROBOT_ACK = new Set(["stop", "resume"]);   // 로봇이 command_result 로 답하는 명령
+function latMark(k) { if (lat && !lat.done && lat[k] === undefined) lat[k] = performance.now(); }
+function latSent(early) {
+  if (!lat || lat.sent) return;
+  lat.sent = performance.now(); lat.early = early;
+  if (lat.final === undefined) lat.final = lat.sent;
+}
+function latInterpreted(m) {
+  if (!lat || lat.done || m.uid !== lat.uid) return;
+  lat.interp = performance.now(); lat.m = m;
+  lat.ackExpected = ROBOT_ACK.has(m.command) || (m.command === "pause" && (m.robots || []).length > 0);   // 로봇별 일시정지도 로봇이 답함
+  if (m.command && m.immediate && lat.ackExpected) lat.timer = setTimeout(latFinish, 2000);
+  else if (!(m.command && !m.immediate)) latFinish();          // 확인이 필요한 명령은 '실행'을 기다림
+}
+function latConfirmed(command) {
+  lat.confirm = performance.now();
+  if (ROBOT_ACK.has(command)) lat.timer = setTimeout(latFinish, 2000); else latFinish();
+}
+function onAck(m) {
+  if (!lat || lat.done || m.uid !== lat.uid || lat.ack) return;
+  lat.ack = performance.now(); lat.ackRobot = m.robot_id;
+  clearTimeout(lat.timer); latFinish();
+}
+function latFinish() {
+  const L = lat; if (!L || L.done) return; L.done = true;
+  const d = (a, b) => (L[a] !== undefined && L[b] !== undefined ? Math.max(0, Math.round(L[a] - L[b])) : null);
+  const ref = L.early ? "speech" : (L.speechEnd !== undefined && L.speechEnd <= (L.sent ?? Infinity) ? "speechEnd" : "release");
+  const human = L.confirm !== undefined ? L.confirm - L.interp : 0;
+  const end = L.ack ?? L.confirm ?? L.interp;
+  const seg = {
+    mic_open: d("audio", "press"), first_text: d("first", "speech"), finalize: d("final", ref),
+    interpret: d("interp", "sent"), server_ms: L.m ? L.m.ms : null, human_confirm: L.confirm !== undefined ? Math.round(human) : null,
+    robot_ack: L.ack !== undefined ? Math.round(L.ack - (L.confirm ?? L.interp)) : null,
+  };
+  const total = L[ref] !== undefined && end !== undefined ? Math.round(end - L[ref] - human) : null;
+  const m = L.m || {};
+  const ackTxt = L.ackExpected ? (L.ack ? ` · 로봇 응답 ${seg.robot_ack} (${L.ackRobot})` : " · 로봇 응답 없음 (2 s)") : "";
+  $("latency").innerHTML = `<b>${total ?? "—"} ms</b> ${L.early ? "말 시작→" : "말 끝→"}${m.command ? "실행" : "해석"}` +
+    ` <span class="muted">· 확정 ${seg.finalize ?? "—"} · 해석 ${seg.interpret ?? "—"} (${m.via === "llm" ? "LLM" : m.via === "rule" ? "규칙" : "없음"})${ackTxt}` +
+    ` · 마이크 열림 ${seg.mic_open ?? "—"} · 첫 글자 ${seg.first_text ?? "—"}</span>`;
+  send({ type: "latency", uid: L.uid, text: m.text, command: m.command || null, via: m.via, label: m.label, segments: seg, total_ms: total, ref });
 }
 
 // ---------------------------------------------------------------- 키보드

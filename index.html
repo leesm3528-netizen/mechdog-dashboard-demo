@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MechDog 현장 관제</title>
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=3">
 <style>
 .badge.demo { color: #ffd88a; border-color: rgba(240, 178, 50, .45); background: rgba(240, 178, 50, .1); }
 .badge.demo::before { background: var(--warn); }
 .demo-voice { display: flex; gap: 6px; margin-top: 8px; }
 .demo-voice input { flex: 1; min-width: 0; color: var(--text); background: rgba(255, 255, 255, .05); border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 13px; }
 .demo-voice button { padding: 6px 12px; }
+.demo-fall { padding: 4px 10px; font-size: 12px; font-weight: 700; color: #111; background: #f5c400; border: 0; border-radius: 999px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -26,11 +27,25 @@
   </div>
   <div class="badges">
     <span class="badge demo">데모 · 가짜 로봇 4대</span>
+    <button id="demoFall" class="demo-fall" title="3호기를 6초 동안 넘어진 상태로 만든다">⚠ 넘어짐 시연</button>
     <span id="wsBadge" class="badge">서버 연결 중</span>
     <span id="mqttBadge" class="badge">MQTT ?</span>
     <span id="llmBadge" class="badge">LLM ?</span>
   </div>
 </header>
+
+<div id="fallAlert" class="fall-alert hidden" role="alert" aria-live="assertive">
+  <svg class="fall-sign" viewBox="0 0 100 88" aria-hidden="true">
+    <path d="M50 4 L96 84 H4 Z" fill="#f5c400" stroke="#111" stroke-width="7" stroke-linejoin="round"/>
+    <rect x="45" y="30" width="10" height="30" rx="3" fill="#111"/>
+    <circle cx="50" cy="71" r="6" fill="#111"/>
+  </svg>
+  <div class="fall-body">
+    <div class="fall-title">WARNING</div>
+    <div id="fallText" class="fall-text">로봇 넘어짐</div>
+  </div>
+  <button id="fallAck" class="fall-ack">확인</button>
+</div>
 
 <section class="stages card">
   <div class="stage-row" id="stages"></div>
@@ -73,8 +88,9 @@
 
     <h2>음성</h2>
     <button id="mic" class="mic">🎤 누르고 말하기<small>V 키를 누르고 있어도 됨</small></button>
-    <form id="demoVoice" class="demo-voice"><input id="demoVoiceText" type="text" placeholder="마이크 대신 입력: 예) 잠깐 멈춰" autocomplete="off"><button type="submit" class="secondary">말하기</button></form>
+    <form id="demoVoice" class="demo-voice"><input id="demoVoiceText" type="text" placeholder="마이크 대신 입력: 예) 2호기 멈춰, 1번 다시 시작" autocomplete="off"><button type="submit" class="secondary">말하기</button></form>
     <div id="heard" class="heard muted">—</div>
+    <div id="latency" class="latency" title="입력한 순간부터 결과까지 걸린 시간 (데모는 STT 없이 글자 입력)">⏱ 지연 시간: 입력하면 표시</div>
     <div id="confirm" class="confirm hidden">
       <div id="confirmText"></div>
       <div class="row">
@@ -158,10 +174,10 @@
 </main>
 </div>
 
-<script src="demo-backend.js?v=2"></script>
-<script src="map-core.js?v=2"></script>
-<script src="app.js?v=2"></script>
-<script src="twin.js?v=2"></script>
-<script src="editor.js?v=2"></script>
+<script src="demo-backend.js?v=3"></script>
+<script src="map-core.js?v=3"></script>
+<script src="app.js?v=3"></script>
+<script src="twin.js?v=3"></script>
+<script src="editor.js?v=3"></script>
 </body>
 </html>
