@@ -9,7 +9,7 @@
     rect: "끌어서 사각형을 그립니다", circle: "가운데를 누르고 끌어서 원을 그립니다",
     polygon: "점을 차례로 찍고 더블클릭(또는 Enter)으로 끝냅니다 · Backspace 마지막 점 지우기 · Esc 취소",
     wall: "점을 차례로 찍고 더블클릭(또는 Enter)으로 끝냅니다 · Esc 취소",
-    plank: "판대기 가운데를 누르면 놓입니다 · 선택 후 R 로 15° 회전", robot_start: "로봇이 출발할 자리를 누릅니다 · 선택 후 R 로 방향 회전",
+    bucket: "버켓 가운데를 누르면 놓입니다 · 입구가 화살표 방향 · 선택 후 R 로 15° 회전", robot_start: "로봇이 출발할 자리를 누릅니다 · 선택 후 R 로 방향 회전",
   };
 
   let maps = [], active = null, robotIds = ["mechdog-01", "mechdog-02", "mechdog-03", "mechdog-04"];
@@ -260,7 +260,7 @@
       if (!last || last.x !== p.x || last.y !== p.y) draft.points.push(p);
       draw(); return;
     }
-    if (tool === "plank") add({ id: newId("plank"), kind: "plank", name: nameFor("plank"), shape: "pose", x: p.x, y: p.y, heading_deg: 0, length_m: 0.8 });
+    if (tool === "bucket") add({ id: newId("bucket"), kind: "bucket", name: nameFor("bucket"), shape: "pose", x: p.x, y: p.y, heading_deg: 0, width_m: 0.3 });
     if (tool === "robot_start") {
       const used = new Set(cur.doc.items.filter((i) => i.kind === "robot_start").map((i) => i.robot_id));
       const rid = robotIds.find((r) => !used.has(r));
@@ -350,7 +350,7 @@
       <button class="danger small-btn" data-del>삭제 <small>Delete</small></button>`;
     box.querySelector("[data-f=name]").value = it.name;
     const nums = box.querySelector(".nums");
-    (FIELDS[it.shape] || []).concat(it.kind === "plank" ? [["length_m", "길이 m"]] : []).concat(it.shape === "polyline" ? [["thickness", "두께 m"]] : [])
+    (FIELDS[it.shape] || []).concat(it.kind === "bucket" ? [["width_m", "폭 m"]] : []).concat(it.shape === "polyline" ? [["thickness", "두께 m"]] : [])
       .forEach(([f, label]) => { const l = document.createElement("label"); l.innerHTML = `${label} <input data-f="${f}" type="number" step="0.05">`; l.querySelector("input").value = it[f]; nums.appendChild(l); });
     const ex = box.querySelector(".extra");
     if (it.shape === "polygon" || it.shape === "polyline") ex.innerHTML = `<div class="muted small">점 ${it.points.length}개 · 흰 점을 끌어 모양을 바꿉니다</div>`;
@@ -361,7 +361,7 @@
     box.querySelectorAll("[data-f]").forEach((inp) => inp.onchange = () => {
       const f = inp.dataset.f; let v = inp.value;
       if (inp.type === "number") { v = parseFloat(v); if (!isFinite(v)) { renderProps(); return; } v = r3(v); }
-      if (["w", "h", "r", "length_m", "thickness"].includes(f) && v <= 0) { renderProps(); return; }
+      if (["w", "h", "r", "width_m", "thickness"].includes(f) && v <= 0) { renderProps(); return; }
       mutate(() => { it[f] = v; });
     });
     box.querySelector("[data-del]").onclick = () => { const id = it.id; sel = null; mutate(() => cur.doc.items = cur.doc.items.filter((i) => i.id !== id)); };
@@ -376,9 +376,9 @@
   }
   function ptsOf(i) {
     if (i.shape === "pose") {
-      if (i.kind !== "plank") return [[i.x, i.y]];
-      const hx = Math.cos(i.heading_deg * Math.PI / 180) * i.length_m / 2, hy = Math.sin(i.heading_deg * Math.PI / 180) * i.length_m / 2;
-      return [[i.x - hx, i.y - hy], [i.x + hx, i.y + hy]];
+      if (i.kind !== "bucket") return [[i.x, i.y]];
+      const a = i.heading_deg * Math.PI / 180, d = i.width_m * 0.3, w = i.width_m / 2;
+      return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([su, sv]) => [i.x + su * d * Math.cos(a) - sv * w * Math.sin(a), i.y + su * d * Math.sin(a) + sv * w * Math.cos(a)]);
     }
     return i.shape === "polyline" ? i.points : polyOf(i);
   }
@@ -414,7 +414,7 @@
     if (new Set(starts.map((s) => s.robot_id)).size !== starts.length) errors.push({ t: "같은 로봇의 출발 위치가 두 개 이상" });
     if (!items.some((i) => i.kind === "target")) warnings.push({ t: "목표 시공 구역이 없음" });
     if (!items.some((i) => i.kind === "work")) warnings.push({ t: "작업구역이 없음" });
-    if (!items.some((i) => i.kind === "plank")) warnings.push({ t: "판대기 보관 위치가 없음 (P1 에서 씀)" });
+    if (!items.some((i) => i.kind === "bucket")) warnings.push({ t: "버켓 보관 위치가 없음 (P1 에서 씀)" });
     if (starts.length < 4) warnings.push({ t: `로봇 출발 위치 ${starts.length}/4 대` });
     return { errors, warnings };
   }

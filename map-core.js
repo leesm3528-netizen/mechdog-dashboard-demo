@@ -3,10 +3,10 @@
 window.MapCore = (() => {
   const NS = "http://www.w3.org/2000/svg";
   const KINDS = { work: "작업구역", material: "자재", obstacle: "장애물", target: "목표 시공 구역",
-    wall: "벽·경계선", plank: "판대기", robot_start: "로봇 출발" };
+    wall: "벽·경계선", bucket: "버켓", robot_start: "로봇 출발" };
   // 종류 색 (dataviz 기본 팔레트, 어두운 바탕에서 검증된 단계)
   const COLOR = { work: "#3987e5", material: "#c98500", obstacle: "#e66767", target: "#199e70",
-    wall: "#c3c2b7", plank: "#d95926", robot_start: "#9085e9" };
+    wall: "#c3c2b7", bucket: "#d95926", robot_start: "#9085e9" };
   const ROBOT_COLOR = ["#3987e5", "#d95926", "#199e70", "#c98500"];
 
   function el(tag, attrs, parent) {
@@ -61,11 +61,12 @@ window.MapCore = (() => {
       el("polyline", { points: pts(i.points, f), class: "mc-wall", "stroke-width": Math.max(12, mm(i.thickness || 0.02)) }, g);
       [lx, ly] = i.points[Math.floor(i.points.length / 2) - (i.points.length % 2 ? 0 : 1)];
       if (i.points.length % 2 === 0) { const a = i.points[i.points.length / 2 - 1], b = i.points[i.points.length / 2]; lx = (a[0] + b[0]) / 2; ly = (a[1] + b[1]) / 2; }
-    } else if (i.kind === "plank") {
-      const L = mm(i.length_m || 1), T = 60;
+    } else if (i.kind === "bucket") {   // 위에서 본 버켓: 뒤·양옆이 막힌 U 자, 입구는 heading 방향
+      const W = mm(i.width_m || 0.3), D = W * 0.6;
       const t = el("g", { transform: `translate(${f.X(i.x)} ${f.Y(i.y)}) rotate(${-i.heading_deg})` }, g);
-      el("rect", { x: -L / 2, y: -T / 2, width: L, height: T, rx: 10, class: "mc-plank" }, t);
-      lx = i.x; ly = i.y - 0.08;
+      el("rect", { x: -D / 2, y: -W / 2, width: D, height: W, rx: 14, class: "mc-bucket-fill" }, t);
+      el("path", { d: `M ${D / 2} ${-W / 2} L ${-D / 2} ${-W / 2} L ${-D / 2} ${W / 2} L ${D / 2} ${W / 2}`, class: "mc-bucket" }, t);
+      lx = i.x; ly = i.y - (i.width_m || 0.3) / 2 - 0.07;
     } else if (i.kind === "robot_start") {
       const n = Math.max(0, parseInt(String(i.robot_id).slice(-2), 10) - 1 || 0);
       g.style.setProperty("--c", ROBOT_COLOR[n % 4]);
@@ -81,7 +82,7 @@ window.MapCore = (() => {
 
   function draw(svg, doc, opts = {}) {
     const f = frame(svg, doc, opts);
-    const order = ["work", "target", "material", "obstacle", "wall", "plank", "robot_start"];
+    const order = ["work", "target", "material", "obstacle", "wall", "bucket", "robot_start"];
     [...doc.items].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind))
       .forEach((i) => drawItem(f, i, { selected: opts.selected === i.id, labels: opts.labels }));
     return f;

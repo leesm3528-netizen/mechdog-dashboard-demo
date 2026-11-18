@@ -161,11 +161,12 @@ button small { display: block; font-size: 11px; font-weight: 500; color: rgba(25
 .mc-obstacle .mc-area { fill-opacity: .4; }
 .mc-wall { fill: none; stroke: var(--c); stroke-linecap: round; stroke-linejoin: round; }
 .mc-hit { fill: none; stroke: transparent; stroke-width: 80; }
-.mc-plank { fill: var(--c); fill-opacity: .85; stroke: #fff; stroke-opacity: .5; stroke-width: 4; }
+.mc-bucket-fill { fill: var(--c); fill-opacity: .3; }
+.mc-bucket { fill: none; stroke: var(--c); stroke-width: 22; stroke-linecap: round; stroke-linejoin: round; }
 .mc-start-ring { fill: none; stroke: var(--c); stroke-width: 6; stroke-dasharray: 18 12; }
 .mc-start { fill: var(--c); fill-opacity: .6; }
 .mc-label { fill: #fff; font-weight: 700; pointer-events: none; paint-order: stroke; stroke: rgba(0, 0, 0, .75); stroke-width: 7; }
-.mc-sel .mc-area, .mc-sel .mc-plank, .mc-sel .mc-start-ring { stroke: #fff; stroke-width: 12; }
+.mc-sel .mc-area, .mc-sel .mc-bucket-fill { fill-opacity: .5; } .mc-sel .mc-bucket, .mc-sel .mc-start-ring { stroke: #fff; stroke-width: 12; }
 .mc-sel .mc-wall { stroke: #fff; }
 
 /* 트윈 로봇 */

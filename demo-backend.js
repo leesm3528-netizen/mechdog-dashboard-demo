@@ -34,7 +34,7 @@
       { id: "material-1", kind: "material", name: "자재 보관", shape: "rect", x: 0.2, y: 1.45, w: 0.5, h: 0.35 },
       { id: "obstacle-1", kind: "obstacle", name: "기둥", shape: "circle", cx: 2.45, cy: 1.45, r: 0.15 },
       { id: "target-1", kind: "target", name: "목표 시공 구역", shape: "polygon", points: [[2.3, 0.25], [2.8, 0.25], [2.8, 0.85], [2.3, 0.95]] },
-      { id: "plank-1", kind: "plank", name: "판대기", shape: "pose", x: 0.45, y: 1.2, heading_deg: 0, length_m: 0.4 },
+      { id: "bucket-1", kind: "bucket", name: "버켓", shape: "pose", x: 0.45, y: 1.15, heading_deg: 0, width_m: 0.3 },
       { id: "rs-1", kind: "robot_start", name: "1호기 출발", shape: "pose", x: 0.3, y: 0.3, heading_deg: 0, robot_id: "mechdog-01" },
       { id: "rs-2", kind: "robot_start", name: "2호기 출발", shape: "pose", x: 0.3, y: 0.7, heading_deg: 0, robot_id: "mechdog-02" },
       { id: "rs-3", kind: "robot_start", name: "3호기 출발", shape: "pose", x: 0.3, y: 1.0, heading_deg: 0, robot_id: "mechdog-03" },
@@ -76,7 +76,7 @@
   window.DEMO_BG = (map_id, name) => store.bg[map_id + "/" + name] || null;
 
   const sid = mapCreate("시연장 예시 지도", 3, 2, []);
-  mapSave(sid, SAMPLE, null, "벽·구역·판대기·로봇 출발 4대");
+  mapSave(sid, SAMPLE, null, "벽·구역·버켓·로봇 출발 4대");
   store.active = { map_id: sid, v: 2 };
 
   // ------------------------------------------------------------ 가짜 로봇
