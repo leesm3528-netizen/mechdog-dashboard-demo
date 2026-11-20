@@ -45,7 +45,8 @@
     items: [
       { id: "wall-1", kind: "wall", name: "벽", shape: "polyline", thickness: 0.02, points: [[0.05, 0.05], [2.95, 0.05], [2.95, 1.95], [0.05, 1.95], [0.05, 0.05]] },
       { id: "work-1", kind: "work", name: "작업구역 A", shape: "rect", x: 0.9, y: 0.45, w: 1.2, h: 1.1 },
-      { id: "material-1", kind: "material", name: "자재 보관", shape: "rect", x: 0.2, y: 1.45, w: 0.5, h: 0.35 },
+      { id: "hopper-1", kind: "hopper", name: "호퍼 (쌀)", shape: "pose", x: 0.45, y: 1.65, heading_deg: 0, width_m: 0.24 },
+      { id: "storage-1", kind: "storage", name: "보관함", shape: "pose", x: 1.8, y: 0.25, heading_deg: 90, width_m: 0.4 },
       { id: "obstacle-1", kind: "obstacle", name: "기둥", shape: "circle", cx: 2.45, cy: 1.45, r: 0.15 },
       { id: "target-1", kind: "target", name: "목표 시공 구역", shape: "polygon", points: [[2.3, 0.25], [2.8, 0.25], [2.8, 0.85], [2.3, 0.95]] },
       { id: "bucket-1", kind: "bucket", name: "버켓", shape: "pose", x: 0.45, y: 1.15, heading_deg: 0, width_m: 0.3 },
@@ -90,7 +91,7 @@
   window.DEMO_BG = (map_id, name) => store.bg[map_id + "/" + name] || null;
 
   const sid = mapCreate("시연장 예시 지도", 3, 2, []);
-  mapSave(sid, SAMPLE, null, "벽·구역·버켓·로봇 출발 4대");
+  mapSave(sid, SAMPLE, null, "벽·구역·버켓·호퍼·보관함·로봇 출발 4대");
   store.active = { map_id: sid, v: 2 };
 
   // ------------------------------------------------------------ 가짜 로봇

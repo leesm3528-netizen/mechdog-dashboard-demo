@@ -163,11 +163,16 @@ button small { display: block; font-size: 11px; font-weight: 500; color: rgba(25
 .mc-hit { fill: none; stroke: transparent; stroke-width: 80; }
 .mc-bucket-fill { fill: var(--c); fill-opacity: .3; }
 .mc-bucket { fill: none; stroke: var(--c); stroke-width: 22; stroke-linecap: round; stroke-linejoin: round; }
+.mc-ushape { fill: none; stroke: var(--c); stroke-width: 26; stroke-linecap: square; stroke-linejoin: miter; }
+.mc-dir { fill: none; stroke: var(--c); stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
+.mc-hopper-gap { fill: var(--c); fill-opacity: .08; }
+.mc-hopper-bar { stroke: #b98a55; stroke-width: 10; stroke-dasharray: 22 10; }
+.mc-hopper-bottle { fill: var(--c); fill-opacity: .55; stroke: #fff; stroke-width: 6; }
 .mc-start-ring { fill: none; stroke: var(--c); stroke-width: 6; stroke-dasharray: 18 12; }
 .mc-start { fill: var(--c); fill-opacity: .6; }
 .mc-label { fill: #fff; font-weight: 700; pointer-events: none; paint-order: stroke; stroke: rgba(0, 0, 0, .75); stroke-width: 7; }
 .mc-sel .mc-area, .mc-sel .mc-bucket-fill { fill-opacity: .5; } .mc-sel .mc-bucket, .mc-sel .mc-start-ring { stroke: #fff; stroke-width: 12; }
-.mc-sel .mc-wall { stroke: #fff; }
+.mc-sel .mc-wall, .mc-sel .mc-ushape { stroke: #fff; }
 
 /* 트윈 로봇 */
 .tw-halo { fill: var(--c); fill-opacity: .14; }

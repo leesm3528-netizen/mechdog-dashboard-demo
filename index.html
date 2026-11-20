@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MechDog 현장 관제</title>
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 <style>
 .badge.demo { color: #ffd88a; border-color: rgba(240, 178, 50, .45); background: rgba(240, 178, 50, .1); }
 .badge.demo::before { background: var(--warn); }
@@ -133,6 +133,8 @@
         <span class="tsep"></span>
         <button data-tool="wall" class="tool" title="벽·경계선 (선)"><i class="sw line" style="--c:#c3c2b7"></i>벽</button>
         <button data-tool="bucket" class="tool" title="버켓 보관 위치 (입구 방향 포함)"><i class="sw" style="--c:#d95926"></i>버켓</button>
+        <button data-tool="hopper" class="tool" title="호퍼 적재소 (양옆 상자 + 병, 지나가는 방향 포함)"><i class="sw" style="--c:#e8b923"></i>호퍼</button>
+        <button data-tool="storage" class="tool" title="ㄷ 자 보관함 (실어 온 재료를 붓는 곳, 입구 방향 포함)"><i class="sw" style="--c:#d55ca5"></i>보관함</button>
         <button data-tool="robot_start" class="tool" title="로봇 출발 위치"><i class="sw round" style="--c:#9085e9"></i>로봇 출발</button>
       </div>
       <div class="shapes" id="shapes">
@@ -174,10 +176,10 @@
 </main>
 </div>
 
-<script src="demo-backend.js?v=3"></script>
-<script src="map-core.js?v=3"></script>
-<script src="app.js?v=3"></script>
-<script src="twin.js?v=3"></script>
-<script src="editor.js?v=3"></script>
+<script src="demo-backend.js?v=4"></script>
+<script src="map-core.js?v=4"></script>
+<script src="app.js?v=4"></script>
+<script src="twin.js?v=4"></script>
+<script src="editor.js?v=4"></script>
 </body>
 </html>

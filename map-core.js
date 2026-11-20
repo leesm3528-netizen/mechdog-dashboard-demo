@@ -3,10 +3,10 @@
 window.MapCore = (() => {
   const NS = "http://www.w3.org/2000/svg";
   const KINDS = { work: "작업구역", material: "자재", obstacle: "장애물", target: "목표 시공 구역",
-    wall: "벽·경계선", bucket: "버켓", robot_start: "로봇 출발" };
+    wall: "벽·경계선", bucket: "버켓", robot_start: "로봇 출발", hopper: "호퍼", storage: "보관함" };
   // 종류 색 (dataviz 기본 팔레트, 어두운 바탕에서 검증된 단계)
   const COLOR = { work: "#3987e5", material: "#c98500", obstacle: "#e66767", target: "#199e70",
-    wall: "#c3c2b7", bucket: "#d95926", robot_start: "#9085e9" };
+    wall: "#c3c2b7", bucket: "#d95926", robot_start: "#9085e9", hopper: "#e8b923", storage: "#d55ca5" };
   const ROBOT_COLOR = ["#3987e5", "#d95926", "#199e70", "#c98500"];
 
   function el(tag, attrs, parent) {
@@ -67,6 +67,22 @@ window.MapCore = (() => {
       el("rect", { x: -D / 2, y: -W / 2, width: D, height: W, rx: 14, class: "mc-bucket-fill" }, t);
       el("path", { d: `M ${D / 2} ${-W / 2} L ${-D / 2} ${-W / 2} L ${-D / 2} ${W / 2} L ${D / 2} ${W / 2}`, class: "mc-bucket" }, t);
       lx = i.x; ly = i.y - (i.width_m || 0.3) / 2 - 0.07;
+    } else if (i.kind === "storage") {   // 위에서 본 보관함: ㄷ 자 벽, 터진 쪽(입구)이 heading 방향 — 로봇이 이쪽에서 와서 붓는다
+      const W = mm(i.width_m || 0.4), D = W * 0.75;
+      const t = el("g", { transform: `translate(${f.X(i.x)} ${f.Y(i.y)}) rotate(${-i.heading_deg})` }, g);
+      el("rect", { x: -D / 2, y: -W / 2, width: D, height: W, class: "mc-bucket-fill" }, t);
+      el("path", { d: `M ${D / 2} ${-W / 2} L ${-D / 2} ${-W / 2} L ${-D / 2} ${W / 2} L ${D / 2} ${W / 2}`, class: "mc-ushape" }, t);
+      el("path", { d: `M ${D / 2 + 110} 0 L ${D / 2 + 30} 0 M ${D / 2 + 60} -35 L ${D / 2 + 30} 0 L ${D / 2 + 60} 35`, class: "mc-dir" }, t);
+      lx = i.x; ly = i.y;
+    } else if (i.kind === "hopper") {    // 위에서 본 호퍼: 양옆 받침 상자 + 가운데 병, 화살표는 로봇이 지나가는 방향
+      const G = mm(i.width_m || 0.24), BL = 200, BW = 100;
+      const t = el("g", { transform: `translate(${f.X(i.x)} ${f.Y(i.y)}) rotate(${-i.heading_deg})` }, g);
+      el("rect", { x: -BL / 2, y: -G / 2, width: BL, height: G, class: "mc-hopper-gap" }, t);
+      [-1, 1].forEach((s) => el("rect", { x: -BL / 2, y: s < 0 ? -G / 2 - BW : G / 2, width: BL, height: BW, rx: 8, class: "mc-area" }, t));
+      el("line", { x1: 0, y1: -G / 2 - BW, x2: 0, y2: G / 2 + BW, class: "mc-hopper-bar" }, t);
+      el("circle", { r: 45, class: "mc-hopper-bottle" }, t);
+      el("path", { d: `M ${-BL / 2 - 40} 0 L ${BL / 2 + 60} 0 M ${BL / 2 + 25} -35 L ${BL / 2 + 60} 0 L ${BL / 2 + 25} 35`, class: "mc-dir" }, t);
+      lx = i.x; ly = i.y - (i.width_m || 0.24) / 2 - 0.17;
     } else if (i.kind === "robot_start") {
       const n = Math.max(0, parseInt(String(i.robot_id).slice(-2), 10) - 1 || 0);
       g.style.setProperty("--c", ROBOT_COLOR[n % 4]);
@@ -82,11 +98,21 @@ window.MapCore = (() => {
 
   function draw(svg, doc, opts = {}) {
     const f = frame(svg, doc, opts);
-    const order = ["work", "target", "material", "obstacle", "wall", "bucket", "robot_start"];
+    const order = ["work", "target", "material", "obstacle", "wall", "storage", "hopper", "bucket", "robot_start"];
     [...doc.items].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind))
       .forEach((i) => drawItem(f, i, { selected: opts.selected === i.id, labels: opts.labels }));
     return f;
   }
 
-  return { NS, KINDS, COLOR, ROBOT_COLOR, el, mm, frame, draw, drawItem };
+  /** 방향이 있는 항목(버켓·호퍼·보관함)의 바닥 네 모서리 [m]. 그 외 자세 항목은 null. 서버 maps.pose_corners 와 같은 식. */
+  function poseCorners(i) {
+    const sz = { bucket: [0.3, 0.6, 0], storage: [0.4, 0.75, 0], hopper: [0.24, 0, 0] }[i.kind];
+    if (!sz) return null;
+    const W = i.width_m || sz[0];
+    const d = i.kind === "hopper" ? 0.1 : W * sz[1] / 2, w = i.kind === "hopper" ? W / 2 + 0.1 : W / 2;
+    const a = i.heading_deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+    return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([su, sv]) => [i.x + su * d * c - sv * w * s, i.y + su * d * s + sv * w * c]);
+  }
+
+  return { NS, KINDS, COLOR, ROBOT_COLOR, el, mm, frame, draw, drawItem, poseCorners };
 })();

@@ -9,7 +9,9 @@
     rect: "끌어서 사각형을 그립니다", circle: "가운데를 누르고 끌어서 원을 그립니다",
     polygon: "점을 차례로 찍고 더블클릭(또는 Enter)으로 끝냅니다 · Backspace 마지막 점 지우기 · Esc 취소",
     wall: "점을 차례로 찍고 더블클릭(또는 Enter)으로 끝냅니다 · Esc 취소",
-    bucket: "버켓 가운데를 누르면 놓입니다 · 입구가 화살표 방향 · 선택 후 R 로 15° 회전", robot_start: "로봇이 출발할 자리를 누릅니다 · 선택 후 R 로 방향 회전",
+    bucket: "버켓 가운데를 누르면 놓입니다 · 입구가 화살표 방향 · 선택 후 R 로 15° 회전",
+    hopper: "호퍼(병) 자리를 누릅니다 · 화살표가 로봇이 지나가는 방향 · 폭 = 양옆 상자 안쪽 간격 · R 로 회전",
+    storage: "ㄷ 자 보관함 가운데를 누릅니다 · 터진 쪽(화살표)으로 로봇이 와서 붓습니다 · R 로 회전", robot_start: "로봇이 출발할 자리를 누릅니다 · 선택 후 R 로 방향 회전",
   };
 
   let maps = [], active = null, robotIds = ["mechdog-01", "mechdog-02", "mechdog-03", "mechdog-04"];
@@ -261,6 +263,8 @@
       draw(); return;
     }
     if (tool === "bucket") add({ id: newId("bucket"), kind: "bucket", name: nameFor("bucket"), shape: "pose", x: p.x, y: p.y, heading_deg: 0, width_m: 0.3 });
+    if (tool === "hopper") add({ id: newId("hopper"), kind: "hopper", name: nameFor("hopper"), shape: "pose", x: p.x, y: p.y, heading_deg: 0, width_m: 0.24 });
+    if (tool === "storage") add({ id: newId("storage"), kind: "storage", name: nameFor("storage"), shape: "pose", x: p.x, y: p.y, heading_deg: 90, width_m: 0.4 });
     if (tool === "robot_start") {
       const used = new Set(cur.doc.items.filter((i) => i.kind === "robot_start").map((i) => i.robot_id));
       const rid = robotIds.find((r) => !used.has(r));
@@ -350,7 +354,7 @@
       <button class="danger small-btn" data-del>삭제 <small>Delete</small></button>`;
     box.querySelector("[data-f=name]").value = it.name;
     const nums = box.querySelector(".nums");
-    (FIELDS[it.shape] || []).concat(it.kind === "bucket" ? [["width_m", "폭 m"]] : []).concat(it.shape === "polyline" ? [["thickness", "두께 m"]] : [])
+    (FIELDS[it.shape] || []).concat(it.kind === "bucket" || it.kind === "storage" ? [["width_m", "폭 m"]] : it.kind === "hopper" ? [["width_m", "상자 간격 m"]] : []).concat(it.shape === "polyline" ? [["thickness", "두께 m"]] : [])
       .forEach(([f, label]) => { const l = document.createElement("label"); l.innerHTML = `${label} <input data-f="${f}" type="number" step="0.05">`; l.querySelector("input").value = it[f]; nums.appendChild(l); });
     const ex = box.querySelector(".extra");
     if (it.shape === "polygon" || it.shape === "polyline") ex.innerHTML = `<div class="muted small">점 ${it.points.length}개 · 흰 점을 끌어 모양을 바꿉니다</div>`;
@@ -376,9 +380,7 @@
   }
   function ptsOf(i) {
     if (i.shape === "pose") {
-      if (i.kind !== "bucket") return [[i.x, i.y]];
-      const a = i.heading_deg * Math.PI / 180, d = i.width_m * 0.3, w = i.width_m / 2;
-      return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([su, sv]) => [i.x + su * d * Math.cos(a) - sv * w * Math.sin(a), i.y + su * d * Math.sin(a) + sv * w * Math.cos(a)]);
+      return MC.poseCorners(i) || [[i.x, i.y]];
     }
     return i.shape === "polyline" ? i.points : polyOf(i);
   }
@@ -409,6 +411,10 @@
     items.filter((i) => i.kind === "robot_start" || i.kind === "material").forEach((i) => {
       const pt = i.shape === "pose" ? [i.x, i.y] : cen(polyOf(i));
       obs.forEach((o) => { if (inside(pt, polyOf(o))) errors.push({ t: `${nm(i)} 이(가) 장애물 ${nm(o)} 안에 있음`, id: i.id }); });
+    });
+    items.filter((i) => i.kind === "hopper" || i.kind === "storage").forEach((i) => {
+      const fp = MC.poseCorners(i);
+      obs.forEach((o) => { if (overlap(fp, polyOf(o))) errors.push({ t: `${nm(i)} 이(가) 장애물 ${nm(o)} 와 겹침`, id: i.id }); });
     });
     const starts = items.filter((i) => i.kind === "robot_start");
     if (new Set(starts.map((s) => s.robot_id)).size !== starts.length) errors.push({ t: "같은 로봇의 출발 위치가 두 개 이상" });
