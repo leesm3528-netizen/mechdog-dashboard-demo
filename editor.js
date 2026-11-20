@@ -9,9 +9,9 @@
     rect: "끌어서 사각형을 그립니다", circle: "가운데를 누르고 끌어서 원을 그립니다",
     polygon: "점을 차례로 찍고 더블클릭(또는 Enter)으로 끝냅니다 · Backspace 마지막 점 지우기 · Esc 취소",
     wall: "점을 차례로 찍고 더블클릭(또는 Enter)으로 끝냅니다 · Esc 취소",
-    bucket: "버켓 가운데를 누르면 놓입니다 · 입구가 화살표 방향 · 선택 후 R 로 15° 회전",
+    bucket: "블레이드 가운데를 누르면 놓입니다 · I 자 날, 화살표가 미는 방향 · 선택 후 R 로 15° 회전",
     hopper: "호퍼(병) 자리를 누릅니다 · 화살표가 로봇이 지나가는 방향 · 폭 = 양옆 상자 안쪽 간격 · R 로 회전",
-    storage: "ㄷ 자 보관함 가운데를 누릅니다 · 터진 쪽(화살표)으로 로봇이 와서 붓습니다 · R 로 회전", robot_start: "로봇이 출발할 자리를 누릅니다 · 선택 후 R 로 방향 회전",
+    storage: "ㄷ 자 Stockpile Area 가운데를 누릅니다 · 터진 쪽(화살표)으로 로봇이 와서 붓습니다 · R 로 회전", robot_start: "로봇이 출발할 자리를 누릅니다 · 선택 후 R 로 방향 회전",
   };
 
   let maps = [], active = null, robotIds = ["mechdog-01", "mechdog-02", "mechdog-03", "mechdog-04"];
@@ -420,7 +420,7 @@
     if (new Set(starts.map((s) => s.robot_id)).size !== starts.length) errors.push({ t: "같은 로봇의 출발 위치가 두 개 이상" });
     if (!items.some((i) => i.kind === "target")) warnings.push({ t: "목표 시공 구역이 없음" });
     if (!items.some((i) => i.kind === "work")) warnings.push({ t: "작업구역이 없음" });
-    if (!items.some((i) => i.kind === "bucket")) warnings.push({ t: "버켓 보관 위치가 없음 (P1 에서 씀)" });
+    if (!items.some((i) => i.kind === "bucket")) warnings.push({ t: "블레이드 위치가 없음 (P1 에서 씀)" });
     if (starts.length < 4) warnings.push({ t: `로봇 출발 위치 ${starts.length}/4 대` });
     return { errors, warnings };
   }

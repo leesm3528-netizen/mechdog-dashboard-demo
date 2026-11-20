@@ -3,7 +3,7 @@
 window.MapCore = (() => {
   const NS = "http://www.w3.org/2000/svg";
   const KINDS = { work: "작업구역", material: "자재", obstacle: "장애물", target: "목표 시공 구역",
-    wall: "벽·경계선", bucket: "버켓", robot_start: "로봇 출발", hopper: "호퍼", storage: "보관함" };
+    wall: "벽·경계선", bucket: "블레이드", robot_start: "로봇 출발", hopper: "호퍼", storage: "Stockpile Area" };
   // 종류 색 (dataviz 기본 팔레트, 어두운 바탕에서 검증된 단계)
   const COLOR = { work: "#3987e5", material: "#c98500", obstacle: "#e66767", target: "#199e70",
     wall: "#c3c2b7", bucket: "#d95926", robot_start: "#9085e9", hopper: "#e8b923", storage: "#d55ca5" };
@@ -61,11 +61,12 @@ window.MapCore = (() => {
       el("polyline", { points: pts(i.points, f), class: "mc-wall", "stroke-width": Math.max(12, mm(i.thickness || 0.02)) }, g);
       [lx, ly] = i.points[Math.floor(i.points.length / 2) - (i.points.length % 2 ? 0 : 1)];
       if (i.points.length % 2 === 0) { const a = i.points[i.points.length / 2 - 1], b = i.points[i.points.length / 2]; lx = (a[0] + b[0]) / 2; ly = (a[1] + b[1]) / 2; }
-    } else if (i.kind === "bucket") {   // 위에서 본 버켓: 뒤·양옆이 막힌 U 자, 입구는 heading 방향
-      const W = mm(i.width_m || 0.3), D = W * 0.6;
+    } else if (i.kind === "bucket") {   // 위에서 본 블레이드: I 자 (폭 방향 날 + 양 끝 짧은 턱), 화살표는 밀고 가는 heading 방향
+      const W = mm(i.width_m || 0.3), C = 30;
       const t = el("g", { transform: `translate(${f.X(i.x)} ${f.Y(i.y)}) rotate(${-i.heading_deg})` }, g);
-      el("rect", { x: -D / 2, y: -W / 2, width: D, height: W, rx: 14, class: "mc-bucket-fill" }, t);
-      el("path", { d: `M ${D / 2} ${-W / 2} L ${-D / 2} ${-W / 2} L ${-D / 2} ${W / 2} L ${D / 2} ${W / 2}`, class: "mc-bucket" }, t);
+      el("rect", { x: -C, y: -W / 2, width: 2 * C, height: W, class: "mc-blade-hit" }, t);
+      el("path", { d: `M 0 ${-W / 2} L 0 ${W / 2} M ${-C} ${-W / 2} L ${C} ${-W / 2} M ${-C} ${W / 2} L ${C} ${W / 2}`, class: "mc-blade" }, t);
+      el("path", { d: `M ${C + 20} 0 L ${C + 100} 0 M ${C + 70} -30 L ${C + 100} 0 L ${C + 70} 30`, class: "mc-dir" }, t);
       lx = i.x; ly = i.y - (i.width_m || 0.3) / 2 - 0.07;
     } else if (i.kind === "storage") {   // 위에서 본 보관함: ㄷ 자 벽, 터진 쪽(입구)이 heading 방향 — 로봇이 이쪽에서 와서 붓는다
       const W = mm(i.width_m || 0.4), D = W * 0.75;
@@ -104,12 +105,12 @@ window.MapCore = (() => {
     return f;
   }
 
-  /** 방향이 있는 항목(버켓·호퍼·보관함)의 바닥 네 모서리 [m]. 그 외 자세 항목은 null. 서버 maps.pose_corners 와 같은 식. */
+  /** 방향이 있는 항목(블레이드·호퍼·Stockpile Area)의 바닥 네 모서리 [m]. 그 외 자세 항목은 null. 서버 maps.pose_corners 와 같은 식. */
   function poseCorners(i) {
     const sz = { bucket: [0.3, 0.6, 0], storage: [0.4, 0.75, 0], hopper: [0.24, 0, 0] }[i.kind];
     if (!sz) return null;
     const W = i.width_m || sz[0];
-    const d = i.kind === "hopper" ? 0.1 : W * sz[1] / 2, w = i.kind === "hopper" ? W / 2 + 0.1 : W / 2;
+    const d = i.kind === "hopper" ? 0.1 : i.kind === "bucket" ? 0.03 : W * sz[1] / 2, w = i.kind === "hopper" ? W / 2 + 0.1 : W / 2;
     const a = i.heading_deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
     return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([su, sv]) => [i.x + su * d * c - sv * w * s, i.y + su * d * s + sv * w * c]);
   }
