@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>호퍼 여는 방법 비교</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap">
+<style>
+body { margin:0; background:#0E1B2C; color:#E8EEF4; font-family:"Noto Sans KR", system-ui, sans-serif; }
+.page { max-width:1200px; margin:0 auto; padding:20px 16px 40px; display:flex; flex-direction:column; gap:14px; }
+a { color:#FFC233; }
+h1 { font-size:24px; margin:0; } p { margin:0; color:#A9B7C6; }
+#wrap { position:relative; width:100%; overflow:hidden; border-radius:6px; background:#123A6B; }
+#stage { --sans:"Noto Sans KR", system-ui, sans-serif; position:absolute; left:0; top:0; width:1920px; height:1080px; transform-origin:0 0; overflow:hidden; }
+#stage .layer { position:absolute; inset:0; }
+.bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.bar input { flex:1; min-width:160px; accent-color:#FFC233; }
+button { font:inherit; font-size:14px; background:#1C2E45; color:#E8EEF4; border:1px solid #3A5272; border-radius:4px; padding:6px 12px; cursor:pointer; }
+button.on { border-color:#FFC233; color:#FFC233; }
+#chips { display:flex; gap:6px; flex-wrap:wrap; }
+#clock { font-variant-numeric:tabular-nums; font-size:14px; color:#A9B7C6; }
+#stage { --ground:#123A6B; --main:#9CC4EA; --second:#F2F7FC; --accent:#FFC94A; color:var(--second); font-family:var(--sans, system-ui, sans-serif);
+  --faint:color-mix(in srgb, var(--main) 15%, transparent); --fainter:color-mix(in srgb, var(--main) 7%, transparent); --plate:color-mix(in srgb, var(--main) 14%, var(--ground)) }
+.ground { position:absolute; inset:0; background:linear-gradient(var(--faint) 2px, transparent 2px) 0 0/200px 200px, linear-gradient(90deg, var(--faint) 2px, transparent 2px) 0 0/200px 200px, linear-gradient(var(--fainter) 1px, transparent 1px) 0 0/40px 40px, linear-gradient(90deg, var(--fainter) 1px, transparent 1px) 0 0/40px 40px, var(--ground) }
+.words { position:absolute; margin:0; display:flex; flex-direction:column; gap:16px } .words > * { margin:0 }
+.line { font-size:56px; line-height:1.15; font-weight:700 } .sub { font-size:30px; line-height:1.4; color:var(--main) }
+.step { font-size:30px; line-height:1.2; color:var(--accent); font-weight:700; letter-spacing:.04em }
+.art { position:absolute; inset:0; width:100%; height:100%; overflow:visible }
+.ln { fill:none; stroke:var(--main); stroke-width:3; stroke-linecap:round; stroke-linejoin:round }
+.dash { fill:none; stroke:var(--main); stroke-width:2; stroke-dasharray:12 9 }
+.solid { fill:var(--plate); stroke:var(--main); stroke-width:3; stroke-linejoin:round }
+.hotln { fill:none; stroke:var(--accent); stroke-width:3; stroke-linecap:round; stroke-linejoin:round }
+.tag { position:absolute; font-size:28px; line-height:1.3; padding:8px 16px; border:2px solid var(--main); color:var(--second); background:color-mix(in srgb, var(--ground) 90%, transparent); max-width:600px }
+.tag.hot { border-color:var(--accent); color:var(--accent) }
+.sheet { position:absolute; right:48px; bottom:40px; border:2px solid var(--main); font-size:22px; line-height:1.3; color:var(--main); display:flex; flex-direction:column; background:var(--ground) }
+.sheet > div { padding:6px 18px } .sheet > div + div { border-top:2px solid var(--main) }
+</style>
+</head>
+<body>
+<div class="page">
+  <p><a href="./">← 호퍼 적재소 기획</a></p>
+  <h1>호퍼 여는 방법 비교</h1>
+  <p>A 로봇이 밀어 열기 · B 모터 회전 드럼 · C 카메라 판단 · 소리 없음 · Space 재생/일시정지</p>
+  <div id="wrap"><div id="stage"></div></div>
+  <div class="bar"><button id="play" type="button">재생</button><input id="seek" type="range" min="0" value="0" aria-label="재생 위치"><span id="clock"></span></div>
+  <div id="chips"></div>
+</div>
+<script src="player.js"></script>
+<script>
+(function () {
+// MechDog + hopper on blueprint paper. Dog origin (0,0) = belly centre, drawn at scale 1.6. Ground line y = 860.
+window.W = {
+  G: 860, S: 1.6,
+  leg(cls, hx, far) {
+    return '<g class="' + cls + '"' + (far ? ' style="opacity:.4"' : '') + ' transform="translate(' + hx + ' -8) rotate(20)">' +
+      '<path class="solid" d="M-12 0 L-8 70 L8 70 L12 0 Z"/>' +
+      '<g transform="translate(0 70) rotate(-40)"><path class="solid" d="M-8 0 L-5 58 Q0 68 5 58 L8 0 Z"/><circle r="9" class="solid"/></g>' +
+      '<circle r="14" class="solid"/><circle r="4" style="fill:var(--main)"/></g>';
+  },
+  dog(cls, marker) {
+    const shape = 'M-112 -78 L-136 -190 L136 -190 L112 -78 Z';
+    let s = '<g class="' + cls + '">' + W.leg(cls + '-lf2', 112, true) + W.leg(cls + '-lr2', -128, true);
+    s += '<path class="ln" d="M-166 -52 Q-196 -66 -206 -98"/><rect class="solid" x="-172" y="-72" width="334" height="72" rx="14"/>';
+    s += '<path class="dash" d="M-150 -36 H140" style="opacity:.6"/>' + [-152, 142].map((x) => '<circle cx="' + x + '" cy="-56" r="4" style="fill:var(--main)"/>').join('');
+    s += '<path class="solid" d="M150 -54 L150 -104 Q150 -116 162 -116 L234 -116 Q246 -116 246 -104 L246 -60 Q246 -48 234 -48 L170 -48 Z"/><circle class="solid" cx="204" cy="-82" r="12"/><circle class="solid" cx="232" cy="-82" r="8"/>';
+    s += '<g class="' + cls + '-bucket"><defs><clipPath id="' + cls + '-clip"><path d="' + shape + '"/></clipPath></defs><rect class="solid" x="-122" y="-80" width="244" height="10"/>' +
+      '<path class="solid" d="' + shape + '"/><g clip-path="url(#' + cls + '-clip)"><rect class="' + cls + '-fill" x="-150" y="-78" width="300" height="140" style="fill:var(--accent)"/>' +
+      '<path class="' + cls + '-heap" d="M-150 0 Z" style="fill:var(--accent)"/></g>' +
+      '<path class="ln" d="M-146 -190 H146" style="stroke-width:6"/>' +
+      (marker ? '<path d="M-146 -197 H146" style="stroke:var(--accent);stroke-width:8"/>' : '') + '</g>';
+    s += W.leg(cls + '-lf', 112) + W.leg(cls + '-lr', -128);
+    return s + '</g>';
+  },
+  // s = 0 crouched, 1 standing tall. Feet always reach the ground through foot(s).
+  foot(s) { const a = (35 - 30 * s) * Math.PI / 180, k = (-80 + 70 * s) * Math.PI / 180; return -8 + 70 * Math.cos(a) + 64 * Math.cos(a + k); },
+  rig(root, cls) {
+    const L = [['lf', 0], ['lr', Math.PI], ['lf2', Math.PI], ['lr2', 0]].map(([n, ph]) => {
+      const el = root.querySelector('.' + cls + '-' + n);
+      return { el, knee: el.querySelector('g'), hx: n[1] === 'f' ? 112 : -128, ph };
+    });
+    const fill = root.querySelector('.' + cls + '-fill'), heap = root.querySelector('.' + cls + '-heap');
+    return {
+      place(x, t, walk, s) {
+        const bob = walk * 3 * Math.abs(Math.sin(t * Math.PI * 3.4));
+        const oy = W.G - W.foot(s) * W.S - bob;
+        root.setAttribute('transform', 'translate(' + x.toFixed(1) + ' ' + oy.toFixed(1) + ') scale(' + W.S + ')');
+        const a0 = 35 - 30 * s, k0 = -80 + 70 * s;
+        for (const l of L) {
+          const p = 2 * Math.PI * 1.7 * t + l.ph, a = a0 + walk * 14 * Math.sin(p), k = k0 - walk * 14 * Math.max(0, Math.cos(p));
+          l.el.setAttribute('transform', 'translate(' + l.hx + ' -8) rotate(' + a.toFixed(2) + ')');
+          l.knee.setAttribute('transform', 'translate(0 70) rotate(' + k.toFixed(2) + ')');
+        }
+        return oy;
+      },
+      level(v) {
+        const y = -78 - v * 104;
+        fill.setAttribute('y', y.toFixed(1));
+        heap.setAttribute('d', 'M-150 ' + (y + 2).toFixed(1) + ' Q0 ' + (y - 40 * Math.min(1, v * 3)).toFixed(1) + ' 150 ' + (y + 2).toFixed(1) + ' Z');
+        return y;
+      },
+    };
+  },
+  hopper(cls) {
+    const hop = 'M860 40 H1140 V120 L1030 210 H970 L860 120 Z';
+    return '<g class="' + cls + '"><defs><clipPath id="' + cls + '-clip"><path d="' + hop + '"/></clipPath></defs>' +
+      '<path class="dash" d="M872 120 L800 860 M1128 120 L1200 860" style="opacity:.45"/>' +
+      '<path class="solid" d="' + hop + '"/><rect class="' + cls + '-stock" clip-path="url(#' + cls + '-clip)" x="850" y="60" width="300" height="200" style="fill:var(--accent)"/>' +
+      '<path class="ln" d="' + hop + '"/><path class="ln" d="M860 120 H1140" style="stroke-width:1.5;opacity:.6"/></g>';
+  },
+  floor() {
+    return '<path class="ln" d="M80 860 H1860"/><path class="ln" style="stroke-width:1.5;opacity:.45" d="' + Array.from({ length: 44 }, (_, i) => 'M' + (110 + i * 40) + ' 860 l-20 20').join(' ') + '"/>';
+  },
+  grains(kit, n, seed) {
+    const r = kit.rng(seed), list = Array.from({ length: n }, () => ({ at: r(), j: r() - 0.5, s: 5 + r() * 6 }));
+    return {
+      markup: '<g class="grains">' + list.map(() => '<circle style="fill:var(--accent)"/>').join('') + '</g>',
+      bind(g) { list.forEach((p, i) => { p.el = g.children[i]; p.el.setAttribute('r', p.s.toFixed(1)); }); },
+      // grains leave (x0,y0) and land on ys; on(born) says whether a grain born then is falling
+      fall(t, x0, y0, ys, P, on) {
+        for (const p of list) {
+          const qq = (((t - p.at * P) / P) % 1 + 1) % 1, born = t - qq * P;
+          p.el.style.opacity = on(born) ? 1 : 0;
+          p.el.setAttribute('cx', (x0 + p.j * 30 + p.j * 36 * qq).toFixed(1));
+          p.el.setAttribute('cy', (y0 + (ys - y0) * qq * qq).toFixed(1));
+        }
+      },
+    };
+  },
+};
+})();
+</script>
+<script>
+(function () {
+const { seg, eo, eio, lerp, TextFx } = kit;
+kit.scene('ask', {
+  init(kit) {
+    kit.stage.append(kit.h('<div class="ground">' +
+      '<svg class="art ask-art" viewBox="0 0 1920 1080">' + W.floor() + W.hopper('ask-hop') +
+        '<rect class="solid" x="962" y="210" width="76" height="12"/>' +
+        '<circle class="ask-ring" cx="1000" cy="214" r="58" style="fill:none;stroke:var(--accent);stroke-width:4;stroke-dasharray:14 10"/>' +
+        '<g class="ask-dog">' + W.dog('ask-d') + '</g></svg>' +
+      '<div class="words" style="left:110px;top:80px;width:700px"><h1 class="line ask-line" style="font-size:72px">호퍼를 어떻게 열까?</h1><p class="sub ask-sub">가진 것: XIAO ESP32-S3 Sense, 아두이노 · 서보 없음</p></div>' +
+      '<div class="words" style="left:110px;top:400px;width:560px;gap:20px">' +
+        '<p class="tag hot ask-c" style="position:static">A · 로봇이 직접 밀어 열기</p>' +
+        '<p class="tag hot ask-c" style="position:static">B · 모터로 드럼 돌리기</p>' +
+        '<p class="tag hot ask-c" style="position:static">C · 카메라로 보고 판단</p></div>' +
+      '<div class="sheet"><div>dogistics · 호퍼 게이트 구상</div><div>SHEET 0 · 질문</div></div></div>'));
+    const q = (s) => kit.stage.querySelector(s);
+    this.rig = W.rig(q('.ask-d'), 'ask-d');
+    this.chips = Array.from(kit.stage.querySelectorAll('.ask-c'));
+    Object.assign(this, { art: q('.ask-art'), ring: q('.ask-ring'), line: q('.ask-line'), sub: q('.ask-sub') });
+  },
+  render(t) {
+    this.art.style.transform = 'scale(' + lerp(1, 1.02, eio(seg(t, 0, 3.5))) + ')';
+    this.rig.place(1000, t, 0, 0.5);
+    this.rig.level(0);
+    this.ring.style.transformOrigin = '1000px 214px';
+    this.ring.style.transform = 'rotate(' + (t * 20).toFixed(1) + 'deg) scale(' + (1 + 0.04 * Math.sin(t * 3)) + ')';
+    TextFx.fadeFromRight(this.line, t, -0.6);
+    this.sub.style.opacity = eo(seg(t, 0.2, 0.7));
+    this.chips.forEach((c, i) => {
+      const p = eo(seg(t, 0.8 + i * 0.3, 1.3 + i * 0.3));
+      c.style.opacity = p; c.style.transform = 'translateX(' + lerp(28, 0, p).toFixed(1) + 'px)';
+    });
+  },
+});
+})();
+</script>
+<script>
+(function () {
+const { seg, eo, ei, eio, lerp, TextFx } = kit;
+kit.scene('lever', {
+  init(kit) {
+    this.gr = W.grains(kit, 24, 5);
+    kit.stage.append(kit.h('<div class="ground">' +
+      '<svg class="art lever-art" viewBox="0 0 1920 1080">' + W.floor() + W.hopper('lever-hop') +
+        '<path class="solid" d="M1030 150 H1150 V172 H1030 Z"/>' +
+        '<path class="lever-spring" style="fill:none;stroke:var(--main);stroke-width:3;stroke-linejoin:round"/>' +
+        '<g class="lever-arm" transform="translate(1030 216)">' +
+          '<rect class="solid" x="-70" y="-4" width="74" height="12"/>' +
+          '<path d="M0 0 L65 179" style="stroke:var(--main);stroke-width:9;stroke-linecap:round"/>' +
+          '<rect x="25" y="173" width="80" height="14" rx="3" style="fill:var(--accent)"/>' +
+          '<circle r="10" class="solid"/><circle r="3" style="fill:var(--main)"/></g>' +
+        this.gr.markup + '<g class="lever-dog">' + W.dog('lever-d') + '</g></svg>' +
+      '<div class="words" style="left:110px;top:60px;width:640px;gap:14px">' +
+        '<p class="tag lever-s" style="position:static">① 몸을 낮춰 호퍼 아래로</p>' +
+        '<p class="tag hot lever-s" style="position:static">② 몸을 세우면 버켓이 지렛대를 밀어 문이 열림</p>' +
+        '<p class="tag lever-s" style="position:static">③ 몸을 낮추면 스프링이 문을 닫음</p></div>' +
+      '<div class="tag lever-th" style="left:1176px;top:96px">경첩 + 스프링</div>' +
+      '<div class="tag hot lever-tp" style="left:1196px;top:250px">누름판</div>' +
+      '<div class="words" style="left:110px;bottom:30px;width:1280px"><p class="step">A · 로봇이 직접 열기 (모터 없음)</p><h2 class="line lever-line">몸을 세우면 버켓이 지렛대를 밀어 올린다</h2><p class="sub lever-sub">전기 없이 바로 시험 · 세운 시간 = 받는 양</p></div>' +
+      '<div class="sheet"><div>dogistics · 호퍼 게이트 구상</div><div>SHEET A · 지렛대</div></div></div>'));
+    const q = (s) => kit.stage.querySelector(s);
+    this.gr.bind(q('.grains'));
+    this.rig = W.rig(q('.lever-d'), 'lever-d');
+    this.steps = Array.from(kit.stage.querySelectorAll('.lever-s'));
+    Object.assign(this, { art: q('.lever-art'), arm: q('.lever-arm'), spring: q('.lever-spring'), stock: q('.lever-hop-stock'),
+      th: q('.lever-th'), tp: q('.lever-tp'), line: q('.lever-line'), sub: q('.lever-sub') });
+  },
+  render(t) {
+    this.art.style.transform = 'scale(' + lerp(1, 1.02, eio(seg(t, 0, 8))) + ')';
+    const inP = eio(seg(t, -0.2, 2.0)), outP = ei(seg(t, 6.3, 8.2));
+    const x = lerp(420, 1000, inP) + 760 * outP, walk = (inP > 0 && inP < 1) || outP > 0 ? 1 : 0;
+    const s = eio(seg(t, 2.3, 2.9)) * (1 - eio(seg(t, 5.4, 5.9)));
+    const oy = this.rig.place(x, t, walk, s);
+    const v = 0.8 * eio(seg(t, 2.8, 5.8)), fy = this.rig.level(v);
+    const rim = oy - 190 * W.S, over = Math.abs(x - 1000) < 120;
+    const push = over ? Math.max(0, 395 - rim) : 0;
+    const a = (Math.asin(Math.max(-1, Math.min(1, (179 - push) / 190.4))) - 1.2217) * 180 / Math.PI;
+    this.arm.setAttribute('transform', 'translate(1030 216) rotate(' + a.toFixed(2) + ')');
+    const r = a * Math.PI / 180, mx = 1030 + 32 * Math.cos(r) - 88 * Math.sin(r), my = 216 + 32 * Math.sin(r) + 88 * Math.cos(r);
+    let d = 'M1140 172', n = 9;
+    for (let i = 1; i < n; i++) { const f = i / n, px = lerp(1140, mx, f), py = lerp(172, my, f); d += ' L' + (px + (i % 2 ? 12 : -12)).toFixed(1) + ' ' + py.toFixed(1); }
+    this.spring.setAttribute('d', d + ' L' + mx.toFixed(1) + ' ' + my.toFixed(1));
+    this.stock.setAttribute('y', (60 + 70 * eio(seg(t, 2.8, 5.8))).toFixed(1));
+    this.gr.fall(t, 1000, 224, oy + fy * W.S - 8, 0.42, (b) => b > 2.75 && b < 5.45);
+    this.steps.forEach((el, i) => {
+      const st = [0.3, 2.3, 5.4][i], p = eo(seg(t, st, st + 0.4));
+      el.style.opacity = p * (i === [0, 1, 2][t < 2.3 ? 0 : t < 5.4 ? 1 : 2] ? 1 : 0.55);
+      el.style.transform = 'translateX(' + lerp(24, 0, p).toFixed(1) + 'px)';
+    });
+    this.th.style.opacity = eo(seg(t, 0.8, 1.2));
+    this.tp.style.opacity = eo(seg(t, 1.1, 1.5));
+    TextFx.fadeFromRight(this.line, t, 0.3);
+    this.sub.style.opacity = eo(seg(t, 1.4, 1.9));
+  },
+});
+})();
+</script>
+<script>
+(function () {
+const { seg, eo, eio, lerp, TextFx } = kit;
+const DRUM_STEPS = [1.2, 2.3, 3.4, 4.5];
+kit.scene('drum', {
+  init(kit) {
+    this.gr = W.grains(kit, 22, 9);
+    const wedge = (i) => {
+      const a0 = (i * 90 - 40) * Math.PI / 180, a1 = (i * 90 + 40) * Math.PI / 180, P = (r, a) => (r * Math.sin(a)).toFixed(1) + ' ' + (-r * Math.cos(a)).toFixed(1);
+      return '<path class="drum-pk" d="M' + P(14, a0) + ' L' + P(42, a0) + ' A42 42 0 0 1 ' + P(42, a1) + ' L' + P(14, a1) + ' Z" style="fill:var(--accent)"/>';
+    };
+    kit.stage.append(kit.h('<div class="ground">' +
+      '<svg class="art drum-art" viewBox="0 0 1920 1080">' + W.floor() + W.hopper('drum-hop') +
+        '<path class="solid" d="M944 206 H1056 V300 L1030 324 H970 L944 300 Z"/>' +
+        '<g class="drum-rot" transform="translate(1000 258)"><circle r="48" class="solid"/>' + [0, 1, 2, 3].map(wedge).join('') +
+          '<path class="ln" d="M-34 -34 L34 34 M34 -34 L-34 34"/><circle r="10" class="solid"/></g>' +
+        '<rect class="solid" x="1062" y="234" width="62" height="48" rx="6"/><path class="ln" d="M1056 258 H1062"/>' +
+        '<g class="drum-x"><rect class="solid" x="1196" y="60" width="84" height="58" rx="6"/><circle cx="1238" cy="89" r="9" class="solid"/></g>' +
+        '<path class="dash drum-wire" d="M1238 118 V200 Q1238 258 1124 258" style="stroke:var(--accent)"/>' +
+        '<path class="dash" d="M760 268 H944" style="opacity:.7"/>' +
+        this.gr.markup + '<g class="drum-dog">' + W.dog('drum-d') + '</g></svg>' +
+      '<div class="tag hot drum-ta" style="right:1160px;top:240px">회전 드럼: 한 칸 = 일정량</div>' +
+      '<div class="tag drum-tm" style="left:1150px;top:300px">모터: 서보 또는 28BYJ-48 스텝모터</div>' +
+      '<div class="tag drum-tx" style="left:1310px;top:64px">XIAO: MQTT 명령 “4칸”</div>' +
+      '<div class="words" style="left:110px;bottom:30px;width:1280px"><p class="step">B · 모터로 회전 드럼 돌리기</p><h2 class="line drum-line">드럼이 한 칸 돌 때마다 같은 양이 떨어진다</h2><p class="sub drum-sub">모터 구입 필요 (수천 원) · 양을 원격으로 정확히</p></div>' +
+      '<div class="sheet"><div>dogistics · 호퍼 게이트 구상</div><div>SHEET B · 회전 드럼</div></div></div>'));
+    const q = (s) => kit.stage.querySelector(s);
+    this.gr.bind(q('.grains'));
+    this.rig = W.rig(q('.drum-d'), 'drum-d');
+    this.pk = Array.from(kit.stage.querySelectorAll('.drum-pk'));
+    Object.assign(this, { art: q('.drum-art'), rot: q('.drum-rot'), wire: q('.drum-wire'), stock: q('.drum-hop-stock'),
+      ta: q('.drum-ta'), tm: q('.drum-tm'), tx: q('.drum-tx'), line: q('.drum-line'), sub: q('.drum-sub') });
+  },
+  render(t) {
+    this.art.style.transform = 'scale(' + lerp(1, 1.025, eio(seg(t, 0, 6.5))) + ')';
+    const oy = this.rig.place(1000, t, 0, 0.5);
+    let rot = 0, v = 0;
+    for (const s of DRUM_STEPS) { rot += 90 * eio(seg(t, s, s + 0.45)); v += 0.2 * eo(seg(t, s + 0.4, s + 0.9)); }
+    const fy = this.rig.level(v);
+    this.rot.setAttribute('transform', 'translate(1000 258) rotate(' + rot.toFixed(2) + ')');
+    this.pk.forEach((p, i) => { const ph = (((i * 90 + rot) % 360) + 360) % 360; p.style.opacity = ph < 175 || ph > 355 ? 1 : 0.08; });
+    this.stock.setAttribute('y', (60 + 60 * (v / 0.8)).toFixed(1));
+    this.wire.style.strokeDashoffset = (-t * 40).toFixed(1);
+    this.gr.fall(t, 1000, 326, oy + fy * W.S - 8, 0.36, (b) => DRUM_STEPS.some((s) => b > s + 0.2 && b < s + 0.55));
+    this.ta.style.opacity = eo(seg(t, 0.5, 0.9));
+    this.tm.style.opacity = eo(seg(t, 0.8, 1.2));
+    this.tx.style.opacity = eo(seg(t, 1.1, 1.5));
+    TextFx.fadeFromRight(this.line, t, 0.2);
+    this.sub.style.opacity = eo(seg(t, 1.3, 1.8));
+  },
+});
+})();
+</script>
+<script>
+(function () {
+const { seg, eo, eio, lerp, TextFx } = kit;
+kit.scene('camera', {
+  init(kit) {
+    this.gr = W.grains(kit, 22, 13);
+    kit.stage.append(kit.h('<div class="ground">' +
+      '<svg class="art camera-art" viewBox="0 0 1920 1080">' + W.floor() +
+        '<path class="camera-cone" d="M1222 196 L880 860 H1440 Z" style="fill:color-mix(in srgb, var(--accent) 9%, transparent);stroke:var(--accent);stroke-width:2;stroke-dasharray:8 8"/>' +
+        W.hopper('camera-hop') + '<rect class="solid camera-gate" x="962" y="210" width="76" height="12"/>' +
+        '<path class="solid" d="M1120 150 H1196 V162 H1120 Z"/><g transform="translate(1222 168) rotate(10)"><rect class="solid" x="-30" y="-24" width="60" height="40" rx="5"/><circle cy="20" r="9" class="solid"/></g>' +
+        '<g class="camera-wifi">' + [18, 32, 46].map((r) => '<path class="hotln" d="M' + (1222 - r * 0.7) + ' ' + (126 - r * 0.5) + ' Q1222 ' + (126 - r * 1.1) + ' ' + (1222 + r * 0.7) + ' ' + (126 - r * 0.5) + '"/>').join('') + '</g>' +
+        this.gr.markup + '<g class="camera-dog">' + W.dog('camera-d', true) + '</g>' +
+        '<g class="camera-inset"><defs><clipPath id="camera-ic"><rect x="1440" y="380" width="420" height="260"/></clipPath></defs>' +
+          '<rect x="1440" y="380" width="420" height="260" class="solid" style="fill:var(--ground)"/>' +
+          '<g clip-path="url(#camera-ic)"><path class="ln" style="stroke-width:1;opacity:.35" d="' + Array.from({ length: 11 }, (_, i) => 'M' + (1440 + i * 42) + ' 380 V640').join(' ') + '"/>' +
+            '<g class="camera-iv"><rect x="-90" y="-50" width="180" height="100" rx="8" class="solid"/><rect x="-76" y="-38" width="152" height="76" style="fill:none;stroke:var(--accent);stroke-width:8"/>' +
+              '<rect class="camera-ifill" x="-70" y="-32" width="140" height="64" style="fill:var(--accent)"/></g>' +
+            '<rect class="camera-box" x="1550" y="440" width="200" height="140" style="fill:none;stroke:var(--second);stroke-width:3;stroke-dasharray:10 8"/></g>' +
+          '<rect x="1440" y="380" width="420" height="260" style="fill:none;stroke:var(--main);stroke-width:3"/></g></svg>' +
+      '<div class="words" style="left:110px;top:70px;width:620px;gap:14px">' +
+        '<p class="tag hot camera-s" style="position:static">버켓 테두리에 노란 테이프 = 표시</p>' +
+        '<p class="tag camera-s" style="position:static">보이면 → MQTT로 “열기” 신호</p>' +
+        '<p class="tag camera-s" style="position:static">노란색이 채워지면 → 가득 참, 닫기</p></div>' +
+      '<div class="tag camera-tx" style="left:1262px;top:178px">XIAO S3 Sense 내장 카메라 (보유)</div>' +
+      '<div class="tag camera-ti" style="left:1440px;top:656px">카메라 화면: 버켓 확인</div>' +
+      '<div class="words" style="left:110px;bottom:30px;width:1280px"><p class="step">C · 카메라로 보고 판단 (여는 장치는 A·B 중 하나)</p><h2 class="line camera-line">가진 XIAO 카메라가 로봇 도착을 본다</h2><p class="sub camera-sub">추가 센서 없음 · 조명이 바뀌면 다시 맞춰야 함</p></div>' +
+      '<div class="sheet"><div>dogistics · 호퍼 게이트 구상</div><div>SHEET C · 카메라</div></div></div>'));
+    const q = (s) => kit.stage.querySelector(s);
+    this.gr.bind(q('.grains'));
+    this.rig = W.rig(q('.camera-d'), 'camera-d');
+    this.steps = Array.from(kit.stage.querySelectorAll('.camera-s'));
+    Object.assign(this, { art: q('.camera-art'), gate: q('.camera-gate'), wifi: q('.camera-wifi'), iv: q('.camera-iv'), ifill: q('.camera-ifill'), box: q('.camera-box'),
+      stock: q('.camera-hop-stock'), tx: q('.camera-tx'), ti: q('.camera-ti'), line: q('.camera-line'), sub: q('.camera-sub') });
+  },
+  render(t) {
+    this.art.style.transform = 'scale(' + lerp(1, 1.02, eio(seg(t, 0, 6.5))) + ')';
+    const inP = eio(seg(t, -0.3, 2.1)), x = lerp(420, 1000, inP), walk = inP > 0 && inP < 1 ? 1 : 0;
+    const oy = this.rig.place(x, t, walk, 0.5);
+    const v = 0.78 * eio(seg(t, 3.0, 5.4)), fy = this.rig.level(v);
+    const open = eo(seg(t, 2.8, 3.1)) * (1 - eo(seg(t, 5.3, 5.6)));
+    this.gate.setAttribute('x', (962 + 66 * open).toFixed(1));
+    this.stock.setAttribute('y', (60 + 70 * eio(seg(t, 3.0, 5.4))).toFixed(1));
+    this.gr.fall(t, 1000, 224, oy + fy * W.S - 8, 0.42, (b) => b > 2.95 && b < 5.25);
+    const ix = 1650 + (x - 1000) * 0.5;
+    this.iv.setAttribute('transform', 'translate(' + ix.toFixed(1) + ' 510)');
+    this.ifill.style.opacity = v / 0.78;
+    this.box.style.opacity = eo(seg(t, 2.2, 2.5));
+    this.wifi.style.opacity = t > 2.4 && t < 3.4 ? 0.4 + 0.6 * Math.abs(Math.sin((t - 2.4) * Math.PI * 2)) : 0.15;
+    this.steps.forEach((el, i) => {
+      const st = [0.4, 2.4, 4.6][i], p = eo(seg(t, st, st + 0.4));
+      el.style.opacity = p; el.style.transform = 'translateX(' + lerp(24, 0, p).toFixed(1) + 'px)';
+    });
+    this.tx.style.opacity = eo(seg(t, 0.6, 1.0));
+    this.ti.style.opacity = eo(seg(t, 2.2, 2.6));
+    TextFx.fadeFromRight(this.line, t, 0.2);
+    this.sub.style.opacity = eo(seg(t, 1.3, 1.8));
+  },
+});
+})();
+</script>
+<script>
+(function () {
+const { seg, eo, eio, lerp, TextFx } = kit;
+kit.scene('pick', {
+  init(kit) {
+    kit.css('.pick-grid { position:absolute; left:110px; top:220px; width:1700px; display:grid; grid-template-columns:330px 400px 470px 1fr; border:2px solid var(--main) }' +
+      '.pick-row { display:contents } .pick-grid p { margin:0; padding:18px 22px; font-size:28px; line-height:1.35; border-top:2px solid var(--faint) }' +
+      '.pick-h p { color:var(--main); font-size:24px; letter-spacing:.06em; border-top:none } .pick-k { font-weight:700; color:var(--second) } .pick-a .pick-k { color:var(--accent) }');
+    kit.stage.append(kit.h('<div class="ground">' +
+      '<div class="words" style="left:110px;top:80px;width:1500px"><h2 class="line pick-line" style="font-size:64px">어떤 방법으로 시작할까?</h2></div>' +
+      '<div class="pick-grid">' +
+        '<div class="pick-row pick-h"><p>방법</p><p>추가 부품</p><p>좋은 점</p><p>주의</p></div>' +
+        '<div class="pick-row pick-r pick-a"><p class="pick-k">A · 로봇이 밀어 열기</p><p>없음 (지렛대·스프링 자작)</p><p>전기 없이 바로 시험</p><p>MechDog 몸높이 범위 확인</p></div>' +
+        '<div class="pick-row pick-r"><p class="pick-k">B · 모터 회전 드럼</p><p>서보 또는 스텝모터</p><p>양이 일정, 원격 제어</p><p>모터 구입, 드럼 제작</p></div>' +
+        '<div class="pick-row pick-r"><p class="pick-k">C · 카메라 판단</p><p>없음 (XIAO S3 Sense 보유)</p><p>도착·가득 참 둘 다 확인</p><p>조명에 민감, A·B와 같이 씀</p></div></div>' +
+      '<div class="words" style="left:110px;top:720px;width:1300px"><p class="tag hot pick-rec" style="position:static;max-width:1300px;font-size:32px">추천: A로 바로 시험 → C로 도착 확인 추가 → 양이 중요해지면 B</p></div>' +
+      '<div class="sheet"><div>dogistics · 호퍼 게이트 구상</div><div>SHEET D · 비교</div></div></div>'));
+    this.rows = Array.from(kit.stage.querySelectorAll('.pick-r'));
+    this.cells = this.rows.map((r) => Array.from(r.children));
+    this.grid = kit.stage.querySelector('.pick-grid');
+    this.rec = kit.stage.querySelector('.pick-rec');
+    this.line = kit.stage.querySelector('.pick-line');
+  },
+  render(t) {
+    TextFx.fadeFromRight(this.line, t, -0.6);
+    this.grid.style.opacity = eo(seg(t, -0.2, 0.3));
+    this.cells.forEach((cs, i) => {
+      const p = eo(seg(t, 0.3 + i * 0.35, 0.8 + i * 0.35));
+      cs.forEach((c) => { c.style.opacity = p; c.style.transform = 'translateX(' + lerp(24, 0, p).toFixed(1) + 'px)'; });
+    });
+    const r = eo(seg(t, 1.8, 2.3));
+    this.rec.style.opacity = r;
+    this.rec.style.transform = 'translateY(' + lerp(16, 0, r).toFixed(1) + 'px) scale(' + (1 + 0.006 * Math.sin(t * 2)) + ')';
+    this.grid.style.transform = 'translateX(' + (-2 * t).toFixed(1) + 'px)';
+  },
+});
+})();
+</script>
+<script>FilmPlayer({"scenes": [{"id": "ask", "name": "질문", "dur": 3.5}, {"id": "lever", "name": "A 지렛대", "dur": 8}, {"id": "drum", "name": "B 회전 드럼", "dur": 6.5}, {"id": "camera", "name": "C 카메라", "dur": 6.5}, {"id": "pick", "name": "비교", "dur": 5.5}]});</script>
+</body>
+</html>

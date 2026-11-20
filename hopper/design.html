@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>호퍼 적재소 설계</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column of drafting sheets; drawings full width, each in its own scroll box. */
+:root {
+  --bg:#F2F4F1; --panel:#FBFCFA; --ink:#1E2930; --muted:#5A6670; --rule:#C8D0CC; --fill:#E2E8E5;
+  --accent:#C9701F; --dim:#2F5D8A; --ok:#2E7D4F; --no:#B3412E;
+  --sans:"Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "Consolas", monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg:#12181D; --panel:#182027; --ink:#E4EAED; --muted:#9AA7B0; --rule:#2D3942; --fill:#243039;
+  --accent:#F0A04B; --dim:#80B3E6; --ok:#6CC08F; --no:#F08A73; color-scheme:dark } }
+:root[data-theme="dark"] {
+  --bg:#12181D; --panel:#182027; --ink:#E4EAED; --muted:#9AA7B0; --rule:#2D3942; --fill:#243039;
+  --accent:#F0A04B; --dim:#80B3E6; --ok:#6CC08F; --no:#F08A73; color-scheme:dark }
+* { box-sizing:border-box }
+body { background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:16px; line-height:1.7;
+  padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); padding-block:32px 64px }
+.wrap { max-width:960px; margin:0 auto; display:flex; flex-direction:column; gap:40px }
+h1 { font-size:34px; line-height:1.25; margin:0; text-wrap:balance }
+h2 { font-size:22px; line-height:1.35; margin:0; text-wrap:balance; display:flex; gap:12px; align-items:baseline }
+h2 .no { font-family:var(--mono); font-size:15px; color:var(--accent); font-weight:500 }
+h3 { font-size:17px; margin:0 }
+p { margin:0; max-width:68ch } ul, ol { margin:0; padding-left:1.3em; max-width:72ch } li + li { margin-top:4px }
+section { display:flex; flex-direction:column; gap:16px; min-width:0 }
+.meta { font-family:var(--mono); font-size:13px; color:var(--muted); display:flex; flex-wrap:wrap; gap:6px 18px }
+.chip { font-family:var(--mono); font-size:12px; border:1px solid var(--accent); color:var(--accent); padding:1px 8px; border-radius:3px }
+.lead { font-size:18px; max-width:70ch }
+.keys { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:1px; background:var(--rule); border:1px solid var(--rule) }
+.keys div { background:var(--panel); padding:14px 16px; display:flex; flex-direction:column; gap:2px; min-width:0 }
+.keys b { font-family:var(--mono); font-size:26px; font-weight:500; font-variant-numeric:tabular-nums }
+.keys span { font-size:13px; color:var(--muted); line-height:1.45 }
+.sheet { background:var(--panel); border:1px solid var(--rule); overflow-x:auto }
+.sheet svg { display:block; width:100%; min-width:640px; height:auto }
+.cap { font-size:13px; color:var(--muted); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; border-top:1px solid var(--rule); padding:8px 14px; font-family:var(--mono) }
+.tbl { overflow-x:auto; border:1px solid var(--rule); background:var(--panel) }
+table { border-collapse:collapse; width:100%; font-size:14.5px; line-height:1.55 }
+th, td { text-align:left; vertical-align:top; padding:9px 12px; border-bottom:1px solid var(--rule) }
+th { font-size:12.5px; color:var(--muted); font-weight:500; letter-spacing:.04em; background:var(--fill) }
+tr:last-child td { border-bottom:none }
+td.n { font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap }
+.pick { color:var(--ok); font-weight:700 } .nope { color:var(--no); font-weight:700 }
+.note { border-left:3px solid var(--accent); padding:10px 14px; background:var(--panel); font-size:15px; max-width:76ch }
+.src { font-size:13px; color:var(--muted) }
+code { font-family:var(--mono); font-size:.88em; background:var(--fill); padding:1px 5px; border-radius:3px }
+.two { display:grid; grid-template-columns:1fr 1fr; gap:24px } .two > * { min-width:0 }
+@media (max-width:720px) { .two { grid-template-columns:1fr } h1 { font-size:27px } }
+/* drawing styles */
+svg text { font-family:var(--mono); font-size:12px; fill:var(--ink) }
+svg .lbl { font-family:var(--sans); font-size:12.5px; fill:var(--ink) }
+svg .mut { fill:var(--muted) } svg .acc { fill:var(--accent) } svg .dt { fill:var(--dim) }
+.o { fill:none; stroke:var(--ink); stroke-width:1.6; stroke-linejoin:round; stroke-linecap:round }
+.f { fill:var(--fill); stroke:var(--ink); stroke-width:1.6; stroke-linejoin:round }
+.k { fill:var(--ink) }
+.mat { fill:color-mix(in srgb, var(--accent) 38%, transparent) }
+.ac { fill:var(--accent) }
+.ghost { fill:none; stroke:var(--accent); stroke-width:1.6; stroke-dasharray:6 4 }
+.hid { fill:none; stroke:var(--muted); stroke-width:1.2; stroke-dasharray:5 4 }
+.dl { fill:none; stroke:var(--dim); stroke-width:1 }
+.grid { fill:none; stroke:var(--rule); stroke-width:1 }
+.lead-l { fill:none; stroke:var(--muted); stroke-width:.8 }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header style="display:flex;flex-direction:column;gap:12px">
+  <div class="meta"><span>dogistics · Part A</span><span>2026-11-20</span><span class="chip">초안 · 실측 전 치수 포함</span></div>
+  <h1>호퍼 적재소 설계</h1>
+  <p class="lead">로봇이 걸어와 서서 등 위 버켓에 재료를 받는 방식입니다. 모터와 전기 없이 <b>로봇이 몸을 세우면 버켓 테두리가 밀대를 밀어 올려 호퍼 출구의 볼 마개가 열립니다</b> (A 방식, 경첩 없는 밀대식). 몸을 낮추면 무게로 저절로 닫힙니다.</p>
+<p class="note"><b>설계 초안입니다.</b> 이후 시제품에서 바뀐 값: 호퍼 받침 18.5 cm(나무 걸침대 포함), 양옆 상자 안쪽 간격 24 cm, 막대 끝 약 11 cm, 로봇 등 높이 엎드림 8.5 · 일어섬 11.5 cm. 동작은 <a href="film-prototype.html">시제품 영상</a>을 보세요.</p>
+</header>
+
+<section>
+  <div class="keys">
+    <div><b>25 mm</b><span>몸높이 변화: 걸을 때 −10 mm, 받을 때 +15 mm</span></div>
+    <div><b>17 mm</b><span>버켓 테두리가 T자 받침을 밀어 올리는 양 (틈 8 mm를 뺀 값)</span></div>
+    <div><b>1 : 1</b><span>경첩 없이 밀대가 그대로 17 mm 올라감. Ø20 구멍은 10 mm만 들려도 다 열림</span></div>
+    <div><b>Ø15–20</b><span>병뚜껑 구멍. 구멍 크기로 흐르는 양을 정함</span></div>
+  </div>
+  <p class="src">근거: 팀 로봇 펌웨어의 몸높이 허용 범위 −25~+15 mm. −10 mm 자세 2초 전진 16.4 cm, 기본 자세 15.4~18.3 cm, −20 mm부터는 거의 못 걸음 (팀 실측, 2026-11-11). +15 mm 자세로 버티기는 아직 실측 전입니다.</p>
+</section>
+
+<section>
+  <h2><span class="no">01</span>설계 원칙</h2>
+  <ul>
+    <li><b>기본은 닫힘.</b> 마개가 무게로 출구를 막습니다. 전원이나 와이파이가 끊겨도 재료가 쏟아지지 않습니다.</li>
+    <li><b>부품이 적습니다.</b> 경첩, 축, 스프링이 없습니다. 볼 마개, 밀대, T자 받침 세 가지가 한 덩어리로 위아래로만 움직이고, 병목이 밀대를 곧게 잡아 줍니다.</li>
+    <li><b>로봇의 위치 오차는 구조가 받아 줍니다.</b> T자 받침(폭 120 mm)이 버켓(폭 90 mm)의 <b>양쪽 옆 테두리</b>에 걸쳐 눌리므로 좌우 ±15 mm까지 괜찮습니다. 옆 테두리는 길이가 120 mm라 앞뒤로 ±40 mm까지 어긋나도 됩니다. 좌우는 바닥 레일이 잡아 줍니다.</li>
+    <li><b>머리가 T자 받침 밑을 지나가야 합니다.</b> 로봇은 머리부터 들어오므로 카메라 꼭대기(−10 mm 자세에서 약 140 mm)가 받침(158 mm)보다 낮아야 합니다. 그래서 <b>버켓 테두리는 카메라보다 10 mm 이상 높게</b> 합니다.</li>
+    <li><b>받는 양은 시간으로 정합니다.</b> 받는 양은 몸을 세우고 있는 시간에 출구 유량을 곱한 값입니다. 공정 엔진이 시간을 정하면 됩니다.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="no">02</span>어떤 호퍼를 쓸까</h2>
+  <div class="tbl"><table>
+    <tr><th>후보</th><th>비용</th><th>좋은 점</th><th>걸리는 점</th><th>판정</th></tr>
+    <tr><td><b>2 L 생수병 거꾸로</b> (바닥을 잘라 위를 입구로)</td><td class="n">0원</td><td>투명해서 남은 양이 보임. 병목이 규격(안지름 약 21.7 mm)이라 공 마개가 잘 맞음. 뚜껑에 구멍을 뚫어 유량을 바꾸기 쉬움</td><td>병 자체가 약해서 프레임에 케이블타이로 두 군데 묶어야 함</td><td class="pick">추천</td></tr>
+    <tr><td>주방용 플라스틱 깔때기</td><td class="n">1–3천 원</td><td>입구가 넓어 채우기 쉬움</td><td>출구 지름이 정해져 있고 짧아서 공 마개가 앉을 자리가 애매함. 깔때기 위에 통을 따로 얹어야 함</td><td>대안</td></tr>
+    <tr><td>시리얼 디스펜서</td><td class="n">1–2만 원</td><td>튼튼하고 양이 일정</td><td>회전식이라 손잡이를 돌려야 열림. 모터 방식(B)에 맞음</td><td class="nope">제외</td></tr>
+    <tr><td>3D 프린트 호퍼</td><td class="n">출력 시간</td><td>치수를 마음대로</td><td>설계와 출력에 시간이 듬. 1차 시험 뒤에 고려</td><td>나중에</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="no">03</span>재료와 버켓</h2>
+  <div class="two">
+    <div class="tbl"><table>
+      <tr><th>재료</th><th>판정</th></tr>
+      <tr><td><b>쌀</b>: 잘 흐르고 깨끗하며, 흘려도 치우기 쉬움</td><td class="pick">추천</td></tr>
+      <tr><td>플라스틱 비즈 2–3 mm</td><td>가능</td></tr>
+      <tr><td>BB탄 6 mm: 구멍 지름이 알갱이의 5–6배는 돼야 막히지 않음 (30 mm 이상)</td><td class="nope">비추천</td></tr>
+      <tr><td>모래: 먼지가 서보와 기어에 들어감</td><td class="nope">사용 금지</td></tr>
+    </table></div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <p><b>버켓:</b> 작은 반찬통 정도(약 120 × 90 × 60 mm, 길이 × 폭 × 높이)를 등에 벨크로로 붙입니다. 폭 90 mm는 로봇 몸 폭 126 mm 안에 들어갑니다.</p>
+      <p><b>무게:</b> 로봇은 약 560 g이고, 얼마나 실을 수 있는지는 아직 재지 않았습니다. <b>50 g부터</b> 시작해 100 g까지 늘리며 걷는 속도와 서보 발열을 봅니다.</p>
+      <p><b>흐르는 양 (계산값, 쌀 기준):</b> 구멍 Ø15 mm는 초당 약 20 g, Ø20 mm는 초당 약 50 g입니다. 저울로 재서 확정합니다.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">04</span>현장 어디에 둘까</h2>
+  <div class="sheet">
+    <svg viewBox="0 0 780 545" role="img" aria-label="3 m × 2 m 현장 위에서 본 배치도. 왼쪽 짧은 변 가운데에 적재소가 있고 로봇은 오른쪽에서 곧게 들어온다.">
+      <g transform="translate(30 30)">
+        <rect x="0" y="0" width="720" height="480" class="f" style="fill:var(--panel)"/>
+        <path class="grid" d="M120 0V480 M240 0V480 M360 0V480 M480 0V480 M600 0V480 M0 120H720 M0 240H720 M0 360H720"/>
+        <rect x="0" y="204" width="108" height="72" class="ghost" style="stroke:var(--accent)"/>
+        <rect x="0" y="246" width="3" height="48" class="k"/>
+        <path class="o" d="M2 220.8 H72 L108 204 M2 259.2 H72 L108 276" style="stroke-width:2.4"/>
+        <circle cx="57" cy="240" r="5" class="ac"/>
+        <rect x="54" y="207" width="6" height="6" class="k"/><rect x="54" y="267" width="6" height="6" class="k"/>
+        <rect x="216" y="225" width="57" height="30" rx="5" class="f"/><path class="o" d="M216 233 H206 V247 H216"/>
+        <path d="M200 240 H124" style="stroke:var(--accent);stroke-width:2;fill:none;stroke-dasharray:7 5"/><path d="M124 240 l10 -6 v12 z" class="ac"/>
+        <text x="4" y="196" class="lbl acc">적재소 450 × 300 mm</text>
+        <text x="130" y="230" class="lbl">곧게 50 cm 이상 들어옴</text>
+        <text x="130" y="296" class="lbl mut">나갈 때: 뒤로 30 cm → 회전</text>
+        <text x="66" y="244" class="lbl" style="font-size:11px">출구</text>
+        <text x="420" y="120" class="lbl mut" text-anchor="middle">나머지 구역: 다른 공정 (팀과 배치 맞춤)</text>
+        <text x="360" y="502" text-anchor="middle" class="dt">3.0 m</text>
+        <text x="732" y="244" class="dt">2.0 m</text>
+        <text x="6" y="16" class="mut">(0,0)</text>
+      </g>
+    </svg>
+    <div class="cap"><span>그림 1 · 위에서 본 배치 · 대시보드 "현장 지도 1" 3.0 × 2.0 m</span><span>격자 0.5 m</span></div>
+  </div>
+  <ul>
+    <li><b>자리:</b> 왼쪽 짧은 변 가운데입니다. 지도 좌표로 x 0–0.45 m, y 0.85–1.15 m에 450 × 300 mm를 씁니다.</li>
+    <li><b>막다른 벽을 둡니다.</b> 로봇 머리의 초음파가 이 벽까지의 거리를 재서 정확한 자리에 멈춥니다. 초음파는 10–76 cm에서만 맞으므로 12 cm에서 멈추게 합니다.</li>
+    <li><b>곧게 들어옵니다.</b> 4초 직진에 옆으로 4–7 cm 밀리고, 우회전하면 크게 밀립니다. 그래서 50 cm 앞에서 방향을 맞추고 직진만으로 들어옵니다. V자 입구와 레일이 남은 오차를 잡아 줍니다.</li>
+    <li><b>가장자리에 둡니다.</b> 다른 공정의 이동 경로를 막지 않게 합니다. 위에서 보는 위치 카메라가 있다면, 54 cm 높이 프레임이 로봇을 가리지 않는지 확인이 필요합니다.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="no">05</span>적재소 구조</h2>
+  <div class="sheet">
+    <svg viewBox="0 0 700 615" role="img" aria-label="옆에서 본 적재소 단면. 왼쪽 벽, 로봇, 등 위 버켓, 버켓 위 T자 받침 단면, 거꾸로 세운 페트병 호퍼와 볼 마개.">
+      <line x1="10" y1="560" x2="430" y2="560" class="o"/>
+      <path class="hid" d="M10 566 l8 -6 M30 566 l8 -6 M50 566 l8 -6"/>
+      <rect x="270" y="24" width="16" height="536" class="hid"/>
+      <rect x="30" y="380" width="10" height="180" class="f"/>
+      <path d="M158 453 H42" class="dl" style="stroke-dasharray:4 4"/>
+      <path class="mat" d="M271 318 L232 282 L232 120 L324 120 L324 282 L285 318 Z"/>
+      <path class="o" d="M267 325 L228 285 L228 62 M289 325 L328 285 L328 62" style="stroke-width:2"/>
+      <path class="hid" d="M228 62 H328"/>
+      <rect x="267" y="325" width="22" height="22" class="f"/>
+      <rect x="262" y="345" width="32" height="10" class="f"/>
+      <circle cx="278" cy="312" r="14" class="k"/>
+      <line x1="278" y1="326" x2="278" y2="390" style="stroke:var(--ink);stroke-width:3"/>
+      <path class="o" d="M286 150 H300 M286 250 H300"/>
+      <rect x="272" y="392" width="12" height="10" class="k"/>
+      <rect x="218" y="385" width="120" height="60" class="ghost"/>
+      <rect x="218" y="410" width="120" height="60" class="f" style="fill:var(--panel)"/>
+      <rect x="178" y="470" width="212" height="28" rx="8" class="f"/>
+      <rect x="160" y="420" width="54" height="78" rx="7" class="f"/>
+      <rect x="155" y="446" width="5" height="16" class="k"/>
+      <path class="o" d="M198 498 L190 560 M222 498 L230 560 M350 498 L342 560 M374 498 L382 560" style="stroke-width:5"/>
+      <g class="dl"><path d="M40 568 V600 M160 568 V586 M278 360 V600"/><path d="M40 580 H160 M40 596 H278"/></g>
+      <text x="100" y="577" text-anchor="middle" class="dt">120</text>
+      <text x="200" y="611" text-anchor="middle" class="dt">≈ 238</text>
+      <text x="50" y="446" class="lbl mut" style="font-size:11px">초음파 → 벽</text>
+      <g class="lead-l"><path d="M352 420 H440 L452 446 M352 410 H440 L452 424 M290 402 H440 L452 402 M352 385 H440 L452 380 M300 350 H440 L452 352"/></g>
+      <text x="458" y="450" class="lbl">140  카메라 꼭대기 (걸을 때)</text>
+      <text x="458" y="428" class="lbl">150  버켓 테두리 (걸을 때 −10)</text>
+      <text x="458" y="406" class="lbl acc">158  T자 받침 아래면 (틈 8)</text>
+      <text x="458" y="384" class="lbl">175  버켓 테두리 (세울 때 +15)</text>
+      <text x="458" y="356" class="lbl">210  병 출구 (뚜껑 아래면)</text>
+      <text x="340" y="140" class="lbl">2 L 병 · 쌀</text>
+      <text x="300" y="306" class="lbl">볼 마개</text>
+      <text x="458" y="300" class="lbl mut">점선 사각형 = 세운 자세의 버켓</text>
+      <text x="458" y="282" class="lbl mut">숫자 = 바닥에서 높이 mm (예시)</text>
+    </svg>
+    <div class="cap"><span>그림 2 · 옆에서 본 단면 (로봇은 왼쪽을 향해 들어옴)</span><span>1 : 1 mm · 등 윗면 100 (기본 자세) · 버켓 높이 60 가정</span></div>
+  </div>
+  <div class="sheet">
+    <svg viewBox="0 0 900 635" role="img" aria-label="앞에서 본 적재소. 두 기둥과 가로대에 매단 페트병, 병목의 볼 마개와 밀대, 밀대 끝의 T자 받침이 버켓 양쪽 테두리 위에 떠 있다.">
+      <g transform="translate(150 0)">
+        <line x1="150" y1="560" x2="520" y2="560" class="o"/>
+        <rect x="235" y="545" width="15" height="15" class="f"/><rect x="410" y="545" width="15" height="15" class="f"/>
+        <rect x="185" y="20" width="15" height="540" class="f"/><rect x="460" y="20" width="15" height="540" class="f"/><rect x="185" y="20" width="290" height="15" class="f"/>
+        <path class="mat" d="M323 318 L284 282 L284 72 L376 72 L376 282 L337 318 Z"/>
+        <path class="o" d="M319 325 L280 285 L280 62 M341 325 L380 285 L380 62" style="stroke-width:2"/>
+        <path class="hid" d="M280 62 H380"/>
+        <path class="o" d="M200 120 H280 M380 120 H460 M200 240 H280 M380 240 H460"/>
+        <rect x="319" y="325" width="22" height="22" class="f"/><rect x="314" y="345" width="32" height="10" class="f"/>
+        <circle cx="330" cy="310" r="14" class="k"/>
+        <line x1="330" y1="324" x2="330" y2="390" style="stroke:var(--ink);stroke-width:3"/>
+        <path class="o" d="M280 498 L276 560 M380 498 L384 560" style="stroke-width:5"/>
+        <rect x="267" y="470" width="126" height="28" rx="8" class="f"/>
+        <rect x="315" y="420" width="30" height="50" class="hid"/>
+        <rect x="285" y="385" width="90" height="60" class="ghost"/>
+        <rect x="285" y="410" width="90" height="60" class="f" style="fill:var(--panel)"/>
+        <rect x="270" y="375" width="120" height="10" class="ghost"/>
+        <rect x="270" y="392" width="120" height="10" class="k"/>
+        <rect x="276" y="402" width="16" height="4" class="ac"/><rect x="368" y="402" width="16" height="4" class="ac"/>
+        <g class="dl"><path d="M270 386 V588 M390 386 V588 M285 472 V604 M375 472 V604"/><path d="M270 584 H390 M285 600 H375 M250 618 H410 M250 564 V622 M410 564 V622"/></g>
+        <text x="330" y="580" text-anchor="middle" class="dt">받침 120</text>
+        <text x="330" y="614" text-anchor="middle" class="dt">버켓 90</text>
+        <text x="330" y="632" text-anchor="middle" class="dt">레일 안쪽 160</text>
+        <text x="330" y="13" text-anchor="middle" class="dt">기둥 간격 260</text>
+      </g>
+      <g class="lead-l"><path d="M466 310 H300 L292 300 M464 350 H300 L292 342 M480 380 H300 L292 380 M465 444 H300 L292 452"/>
+        <path d="M540 397 H620 L630 380 M534 406 H620 L630 420 M540 380 H620 L630 452"/></g>
+      <text x="284" y="304" text-anchor="end" class="lbl">볼 마개 Ø25–30 (무게로 닫힘)</text>
+      <text x="284" y="346" text-anchor="end" class="lbl">병뚜껑 구멍 Ø15·18·20</text>
+      <text x="284" y="384" text-anchor="end" class="lbl">밀대 Ø3, 공에 접착</text>
+      <text x="284" y="456" text-anchor="end" class="lbl">카메라·머리 (앞쪽, 점선)</text>
+      <text x="636" y="384" class="lbl">T자 받침 (밀대 끝에 접착)</text>
+      <text x="636" y="424" class="lbl acc">펠트: 양쪽 테두리에 닿음</text>
+      <text x="636" y="456" class="lbl">점선 = 열렸을 때 (17 mm 위)</text>
+      <text x="636" y="304" class="lbl mut">경첩·축·스프링 없음</text>
+    </svg>
+    <div class="cap"><span>그림 3 · 앞에서 본 모습 (로봇 진행 방향으로 바라봄)</span><span>1 : 1 mm · 예시 높이</span></div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>부분</th><th>만드는 법</th></tr>
+    <tr><td>바닥판</td><td>폼보드나 MDF 450 × 300 mm. 레일은 15 × 15 각재 두 줄을 안쪽 160 mm 간격으로 붙이고, 입구 쪽 150 mm는 V자로 벌림. 끝에 높이 180 mm 흰 벽(초음파 반사판)</td></tr>
+    <tr><td>프레임</td><td>15 × 15 나무 각재로 ㄷ자 문을 만듦: 기둥 2개(높이 540, 간격 260)와 가로대. 기둥 위치는 출구 아래(벽에서 약 238 mm)</td></tr>
+    <tr><td>호퍼</td><td>2 L 병을 거꾸로 세워 바닥을 자름. 케이블타이 두 줄로 기둥에 고정. 뚜껑 아래면이 바닥에서 210 mm</td></tr>
+    <tr><td>마개</td><td>Ø25–30 고무공이나 나무구슬을 병 안에서 병목 입구에 앉힘. 밀대(나무 꼬치 Ø3)를 공에 꽂아 접착하고, 병목과 뚜껑 구멍으로 내려보냄</td></tr>
+    <tr><td>T자 받침</td><td>아래 06의 설계도대로. 밀대 아래 끝에 접착하고, 양 끝 아래에 펠트</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="no">06</span>밀대 설계도</h2>
+  <div class="sheet">
+    <svg viewBox="0 0 700 330" role="img" aria-label="밀대 조립 부품도. 위에서부터 볼 마개, 길이 약 85 mm 밀대, 폭 120 mm T자 받침. 받침 양 끝 아래에 펠트, 뚜껑에서 내려온 철사 두 가닥이 받침의 회전을 막는다.">
+      <text x="20" y="22" class="lbl mut">앞에서 본 모습 (실제 크기의 2배)</text>
+      <rect x="306" y="28" width="68" height="14" class="f"/>
+      <circle cx="340" cy="72" r="28" class="k"/>
+      <line x1="340" y1="100" x2="340" y2="268" style="stroke:var(--ink);stroke-width:6"/>
+      <path class="o" d="M324 42 V258 M356 42 V258" style="stroke:var(--accent);stroke-width:2"/>
+      <rect x="220" y="268" width="240" height="20" class="k"/>
+      <rect x="220" y="288" width="32" height="8" class="ac"/><rect x="428" y="288" width="32" height="8" class="ac"/>
+      <path class="lead-l" d="M312 72 H200 M340 170 H200 M324 220 H200 M380 35 H480 M460 278 H500 M444 292 H500"/>
+      <text x="194" y="76" text-anchor="end" class="lbl">볼 마개 Ø25–30</text>
+      <text x="194" y="174" text-anchor="end" class="lbl">밀대 Ø3 (공에 꽂아 접착)</text>
+      <text x="194" y="224" text-anchor="end" class="lbl acc">회전 막이 철사 2가닥</text>
+      <text x="486" y="39" class="lbl">병뚜껑 (구멍 Ø15–20)</text>
+      <text x="506" y="282" class="lbl">T자 받침 120 × 10 × 4</text>
+      <text x="506" y="300" class="lbl acc">펠트 (테두리에 닿는 곳)</text>
+      <g class="dl"><path d="M380 100 H420 M366 268 H420 M410 100 V268 M220 296 V318 M460 296 V318 M220 312 H460"/></g>
+      <text x="416" y="190" class="dt">≈ 85 (현장에서 맞춤)</text>
+      <text x="340" y="326" text-anchor="middle" class="dt">120</text>
+    </svg>
+    <div class="cap"><span>그림 4 · 밀대 조립 (움직이는 부품 3개가 한 덩어리) · 단위 mm</span><span>받침: 아크릴 4 mm, 포맥스 5 mm, 또는 아이스크림 막대 2장</span></div>
+  </div>
+  <div class="two">
+    <div class="tbl"><table>
+      <tr><th>항목</th><th>값</th></tr>
+      <tr><td>움직이는 부품</td><td>볼 마개, 밀대, T자 받침 (경첩 없음)</td></tr>
+      <tr><td>마개 들림</td><td class="n">= 누름, 약 17 mm</td></tr>
+      <tr><td>다 열리는 데 필요한 들림</td><td class="n">구멍 지름 ÷ 2</td></tr>
+      <tr><td>밀대 길이</td><td>공이 병목에 앉았을 때 받침 아래면이 (−10 자세 테두리 높이 + 8 mm)가 되게 자름</td></tr>
+      <tr><td>받침 폭</td><td class="n">120 (버켓 90 + 양쪽 15)</td></tr>
+      <tr><td>회전 막이</td><td>뚜껑에서 내려온 철사 2가닥(간격 약 16) 사이로 받침이 위아래로만 움직임</td></tr>
+      <tr><td>닫힘 힘</td><td>마개, 밀대, 받침 무게와 위에서 누르는 쌀 무게</td></tr>
+    </table></div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <p><b>왜 회전 막이가 필요한가:</b> 공은 병목 안에서 자유롭게 돕니다. 받침이 비스듬히 돌아가면 끝이 버켓 안쪽으로 들어가 테두리에 닿지 않을 수 있습니다.</p>
+      <div class="tbl"><table>
+        <tr><th>실측 누름</th><th>판단</th></tr>
+        <tr><td class="n">10 mm 이상</td><td>밀대식 그대로 (Ø20까지)</td></tr>
+        <tr><td class="n">8–10 mm</td><td>밀대식 + 구멍 Ø15</td></tr>
+        <tr><td class="n">8 mm 미만</td><td>예비안: 지렛대로 키움 (회전축 → 누름점 65, 밀대 110, 1.7배)</td></tr>
+      </table></div>
+      <p class="src">아이디어: Part A 담당 (그림 2를 보고 경첩 없이 밀대를 길게 내리자는 제안, 2026-11-20).</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">07</span>동작 순서</h2>
+  <div class="tbl"><table>
+    <tr><th>#</th><th>로봇</th><th>호퍼</th></tr>
+    <tr><td class="n">1</td><td>적재소 50 cm 앞에서 방향을 맞추고 몸을 <b>−10 mm</b>로 낮춤</td><td>닫힘</td></tr>
+    <tr><td class="n">2</td><td>전진(step 50, 초당 약 9 cm). 초음파가 <b>12 cm</b>를 재면 멈춤</td><td>머리와 버켓이 T자 받침 밑을 지나감 (틈 8 mm)</td></tr>
+    <tr><td class="n">3</td><td>0.5초 대기 (멈춘 뒤 자세가 안정되는 시간, 실측)</td><td>닫힘</td></tr>
+    <tr><td class="n">4</td><td>몸을 <b>+15 mm</b>로 세움</td><td><b>열림</b>: 버켓 양쪽 테두리가 T자 받침을 밀어 올려 마개가 들림</td></tr>
+    <tr><td class="n">5</td><td>T초 유지 (예: 쌀 60 g을 Ø15로 받으면 약 3초)</td><td>쌀이 버켓으로 떨어짐</td></tr>
+    <tr><td class="n">6</td><td>몸을 −10 mm로 낮추고 1초 대기</td><td>무게로 <b>닫힘</b>. 떨어지던 쌀은 마저 받음</td></tr>
+    <tr><td class="n">7</td><td>후진(step −50, 짧게) 30 cm 뒤 기본 자세로</td><td>닫힘</td></tr>
+  </table></div>
+  <p class="note">로봇 쪽 필요 사항: 팀 로봇 브리지에 몸높이 명령(−25~+15 mm)과 초음파 거리로 멈추는 전진을 추가해야 합니다.</p>
+</section>
+
+<section>
+  <h2><span class="no">08</span>만들기 전에 잴 것</h2>
+  <p>자와 주방 저울만 있으면 됩니다. 이 값으로 그림 2·3의 예시 높이를 실제 값으로 바꿉니다.</p>
+  <div class="tbl"><table>
+    <tr><th>#</th><th>잴 것</th><th>어떻게</th><th>어디에 쓰나</th></tr>
+    <tr><td class="n">1</td><td>버켓을 단 뒤 테두리 높이: −10 자세와 +15 자세</td><td>자를 세워 바닥부터. 두 값의 차가 실제 누름 범위</td><td>받침 아래면 높이 = −10 값 + 8 (밀대 길이 결정)</td></tr>
+    <tr><td class="n">2</td><td>카메라 꼭대기 높이 (−10 자세)</td><td>자</td><td>받침보다 10 mm 이상 낮은지 확인</td></tr>
+    <tr><td class="n">3</td><td>로봇 앞면부터 버켓 중심까지 거리</td><td>자</td><td>벽에서 출구까지 거리 = 120 + 이 값</td></tr>
+    <tr><td class="n">4</td><td>+15 자세에서 받침을 밀어 올릴 수 있는지</td><td>병에 쌀을 채운 채로 쌀 50 g을 싣고 세우기</td><td>안 되면 마개를 가볍게 하거나 지렛대 예비안</td></tr>
+    <tr><td class="n">5</td><td>구멍별 유량 (Ø15·18·20)</td><td>병에 쌀을 채우고 5초 열어 받은 양을 저울로</td><td>T초 정하기</td></tr>
+    <tr><td class="n">6</td><td>쌀 50·100 g을 싣고 2초 전진 거리</td><td>기존 측정 방식과 같게</td><td>실을 수 있는 무게</td></tr>
+  </table></div>
+  <h3>부품 목록</h3>
+  <div class="tbl"><table>
+    <tr><th>부품</th><th>수량</th><th>구할 곳</th></tr>
+    <tr><td>2 L 생수병, 여분 뚜껑 3개</td><td class="n">1</td><td>재활용</td></tr>
+    <tr><td>고무공 또는 나무구슬 Ø25–30</td><td class="n">2</td><td>다이소</td></tr>
+    <tr><td>나무 꼬치 Ø3, 빨대</td><td class="n">조금</td><td>다이소</td></tr>
+    <tr><td>15 × 15 나무 각재 (약 2 m)</td><td class="n">1</td><td>다이소</td></tr>
+    <tr><td>폼보드 또는 MDF 450 × 300</td><td class="n">1</td><td>다이소</td></tr>
+    <tr><td>T자 받침 판 120 × 10 (아크릴 4 mm 또는 포맥스 5 mm)</td><td class="n">1</td><td>자투리</td></tr>
+    <tr><td>철사 (회전 막이, 약 10 cm)</td><td class="n">2</td><td>다이소</td></tr>
+    <tr><td>펠트 패드, 케이블타이, 글루건, 벨크로</td><td class="n">조금</td><td>다이소</td></tr>
+    <tr><td>반찬통 약 120 × 90 × 60 (버켓)</td><td class="n">1</td><td>다이소</td></tr>
+    <tr><td>쌀</td><td class="n">500 g</td><td>집</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="no">09</span>남은 문제</h2>
+  <ul>
+    <li><b>버켓 비우기는 아직 정하지 않았습니다.</b> 앞뒤 기울기는 ±17°까지라 쏟기에는 부족합니다. 1차는 손으로 비우고, 다음 설계에서 다룹니다.</li>
+    <li><b>공정 엔진:</b> 공정에 "적재소에서 받기" 단계가 새로 생깁니다. 받는 양을 T초로 정하고 진입, 정지, 세우기, 낮추기, 후진 순서를 거칩니다.</li>
+    <li><b>로봇 브리지:</b> 몸높이 명령과 초음파 거리로 멈추는 전진이 필요합니다.</li>
+    <li><b>위치 인식:</b> 적재소 프레임이 위치 인식 카메라를 가리지 않는지 확인이 필요합니다.</li>
+    <li><b>대시보드 (제 파트):</b> 지도 편집기에 "적재소" 항목을 추가하고, 받은 양과 시간을 기록합니다.</li>
+  </ul>
+</section>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MechDog 작업 부착물 구상</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap">
+<style>
+body { margin:0; background:#0E1B2C; color:#E8EEF4; font-family:"Noto Sans KR", system-ui, sans-serif; }
+.page { max-width:1200px; margin:0 auto; padding:20px 16px 40px; display:flex; flex-direction:column; gap:14px; }
+a { color:#FFC233; }
+h1 { font-size:24px; margin:0; } p { margin:0; color:#A9B7C6; }
+#wrap { position:relative; width:100%; overflow:hidden; border-radius:6px; background:#123A6B; }
+#stage { --sans:"Noto Sans KR", system-ui, sans-serif; position:absolute; left:0; top:0; width:1920px; height:1080px; transform-origin:0 0; overflow:hidden; }
+#stage .layer { position:absolute; inset:0; }
+.bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.bar input { flex:1; min-width:160px; accent-color:#FFC233; }
+button { font:inherit; font-size:14px; background:#1C2E45; color:#E8EEF4; border:1px solid #3A5272; border-radius:4px; padding:6px 12px; cursor:pointer; }
+button.on { border-color:#FFC233; color:#FFC233; }
+#chips { display:flex; gap:6px; flex-wrap:wrap; }
+#clock { font-variant-numeric:tabular-nums; font-size:14px; color:#A9B7C6; }
+#stage { --ground:#123A6B; --main:#9CC4EA; --second:#F2F7FC; --accent:#FFC94A; color:var(--second); font-family:var(--sans, system-ui, sans-serif);
+  --faint:color-mix(in srgb, var(--main) 15%, transparent); --fainter:color-mix(in srgb, var(--main) 7%, transparent); --plate:color-mix(in srgb, var(--main) 14%, var(--ground)); --matdark:color-mix(in srgb, var(--accent) 65%, var(--ground)) }
+.ground { position:absolute; inset:0; background:linear-gradient(var(--faint) 2px, transparent 2px) 0 0/200px 200px, linear-gradient(90deg, var(--faint) 2px, transparent 2px) 0 0/200px 200px, linear-gradient(var(--fainter) 1px, transparent 1px) 0 0/40px 40px, linear-gradient(90deg, var(--fainter) 1px, transparent 1px) 0 0/40px 40px, var(--ground) }
+.words { position:absolute; margin:0; display:flex; flex-direction:column; gap:18px } .words > * { margin:0 }
+.line { font-size:72px; line-height:1.15; font-weight:700 } .sub { font-size:34px; line-height:1.4; color:var(--main) }
+.step { font-size:30px; line-height:1.2; color:var(--accent); font-weight:700; letter-spacing:.06em }
+.art { position:absolute; inset:0; width:100%; height:100%; overflow:visible }
+.ln { fill:none; stroke:var(--main); stroke-width:3; stroke-linecap:round; stroke-linejoin:round }
+.dash { fill:none; stroke:var(--main); stroke-width:2; stroke-dasharray:12 9 }
+.solid { fill:var(--plate); stroke:var(--main); stroke-width:3; stroke-linejoin:round }
+.hotln { fill:none; stroke:var(--accent); stroke-width:3; stroke-linecap:round; stroke-linejoin:round }
+.tag { position:absolute; font-size:28px; line-height:1.3; padding:8px 16px; border:2px solid var(--main); color:var(--second); background:color-mix(in srgb, var(--ground) 90%, transparent); max-width:560px }
+.tag.hot { border-color:var(--accent); color:var(--accent) }
+.sheet { position:absolute; right:48px; bottom:40px; border:2px solid var(--main); font-size:22px; line-height:1.3; color:var(--main); display:flex; flex-direction:column; background:var(--ground) }
+.sheet > div { padding:6px 18px } .sheet > div + div { border-top:2px solid var(--main) }
+</style>
+</head>
+<body>
+<div class="page">
+  <p><a href="./">← 호퍼 적재소 기획</a></p>
+  <h1>MechDog 작업 부착물 구상</h1>
+  <p>등 위 버켓: 호퍼 받기 · U자 슈트 · 배 아래 블레이드 · 소리 없음 · Space 재생/일시정지</p>
+  <div id="wrap"><div id="stage"></div></div>
+  <div class="bar"><button id="play" type="button">재생</button><input id="seek" type="range" min="0" value="0" aria-label="재생 위치"><span id="clock"></span></div>
+  <div id="chips"></div>
+</div>
+<script src="player.js"></script>
+<script>
+(function () {
+// MechDog side elevation on blueprint paper. Origin (0,0) = belly centre; feet stand at y = +118.
+window.W = {
+  leg(cls, hx, far) {
+    return '<g class="' + cls + '"' + (far ? ' style="opacity:.4"' : '') + ' transform="translate(' + hx + ' -8) rotate(20)">' +
+      '<path class="solid" d="M-12 0 L-8 70 L8 70 L12 0 Z"/>' +
+      '<g transform="translate(0 70) rotate(-40)"><path class="solid" d="M-8 0 L-5 58 Q0 68 5 58 L8 0 Z"/><circle r="9" class="solid"/></g>' +
+      '<circle r="14" class="solid"/><circle r="4" style="fill:var(--main)"/></g>';
+  },
+  bucket(cls) {
+    const shape = 'M-112 -78 L-136 -190 L136 -190 L112 -78 Z';
+    return '<g class="' + cls + '-bucket"><defs><clipPath id="' + cls + '-clip"><path d="' + shape + '"/></clipPath></defs>' +
+      '<rect class="solid" x="-122" y="-80" width="244" height="10"/>' +
+      '<path d="M-80 -70 L-80 -80 M80 -70 L80 -80" class="ln"/>' +
+      '<path class="solid" d="' + shape + '"/>' +
+      '<g clip-path="url(#' + cls + '-clip)"><rect class="' + cls + '-fill" x="-150" y="-78" width="300" height="140" style="fill:var(--accent)"/>' +
+      '<path class="' + cls + '-heap" d="M-150 0 Q0 -40 150 0 Z" style="fill:var(--accent)"/></g>' +
+      '<path class="ln" d="M-124 -134 L124 -134 M-60 -190 L-50 -78 M60 -190 L50 -78" style="stroke-width:1.5;opacity:.6"/>' +
+      '<path class="ln" d="M-146 -190 H146" style="stroke-width:6"/></g>';
+  },
+  blade(cls) {
+    return '<g class="' + cls + '-blade"><path class="solid" d="M-14 0 L-10 82 L10 82 L14 0 Z"/>' +
+      '<path class="solid" d="M-24 70 H24 V84 H-24 Z"/>' +
+      '<path class="solid" d="M-62 84 H58 Q40 96 50 114 H-56 Q-70 98 -62 84 Z"/>' +
+      '<path d="M-56 110 H50" style="stroke:var(--accent);stroke-width:6;stroke-linecap:round"/>' +
+      '<circle cx="-8" cy="77" r="3" style="fill:var(--main)"/><circle cx="8" cy="77" r="3" style="fill:var(--main)"/></g>';
+  },
+  dog(cls, o) {
+    o = o || {};
+    let s = '<g class="' + cls + '">' + W.leg(cls + '-lf2', 112, true) + W.leg(cls + '-lr2', -128, true);
+    s += '<path class="ln" d="M-166 -52 Q-196 -66 -206 -98"/>';
+    s += '<rect class="solid" x="-172" y="-72" width="334" height="72" rx="14"/>';
+    s += '<path class="dash" d="M-150 -36 H140" style="opacity:.6"/><rect class="ln" x="-60" y="-60" width="110" height="36" rx="4" style="stroke-width:2"/>';
+    s += [-152, -100, 96, 142].map((x) => '<circle cx="' + x + '" cy="-56" r="4" style="fill:var(--main)"/>').join('');
+    s += '<g class="' + cls + '-head"><path class="solid" d="M150 -54 L150 -104 Q150 -116 162 -116 L234 -116 Q246 -116 246 -104 L246 -60 Q246 -48 234 -48 L170 -48 Z"/>' +
+      '<circle class="solid" cx="204" cy="-82" r="12"/><circle class="solid" cx="232" cy="-82" r="8"/><circle cx="204" cy="-82" r="4" style="fill:var(--main)"/></g>';
+    if (o.bucket) s += W.bucket(cls);
+    if (o.blade) s += W.blade(cls);
+    s += W.leg(cls + '-lf', 112) + W.leg(cls + '-lr', -128);
+    return s + '</g>';
+  },
+  // Legs trot in diagonal pairs; fill level 0..1 raises the material inside the bucket.
+  rig(root, cls) {
+    const L = [['lf', 0], ['lr', Math.PI], ['lf2', Math.PI], ['lr2', 0]].map(([n, ph]) => {
+      const el = root.querySelector('.' + cls + '-' + n);
+      return { el, knee: el.querySelector('g'), hx: n[1] === 'f' ? 112 : -128, ph };
+    });
+    const fill = root.querySelector('.' + cls + '-fill'), heap = root.querySelector('.' + cls + '-heap');
+    return {
+      pose(t, walk) {
+        for (const l of L) {
+          const p = 2 * Math.PI * 1.7 * t + l.ph, a = 20 + walk * 16 * Math.sin(p), k = -40 - walk * 16 * Math.max(0, Math.cos(p));
+          l.el.setAttribute('transform', 'translate(' + l.hx + ' -8) rotate(' + a.toFixed(2) + ')');
+          l.knee.setAttribute('transform', 'translate(0 70) rotate(' + k.toFixed(2) + ')');
+        }
+      },
+      level(v) {
+        if (!fill) return;
+        const y = -78 - v * 104;
+        fill.setAttribute('y', y.toFixed(1));
+        heap.setAttribute('d', 'M-150 ' + (y + 2).toFixed(1) + ' Q0 ' + (y - 46 * Math.min(1, v * 3)).toFixed(1) + ' 150 ' + (y + 2).toFixed(1) + ' Z');
+      },
+    };
+  },
+  dim(x1, y1, x2, y2) {
+    const a = Math.atan2(y2 - y1, x2 - x1), nx = -Math.sin(a) * 14, ny = Math.cos(a) * 14;
+    const tk = (x, y) => ' M' + (x - nx).toFixed(1) + ' ' + (y - ny).toFixed(1) + ' L' + (x + nx).toFixed(1) + ' ' + (y + ny).toFixed(1);
+    return '<path class="ln" style="stroke-width:2" d="M' + x1 + ' ' + y1 + ' L' + x2 + ' ' + y2 + tk(x1, y1) + tk(x2, y2) + '"/>';
+  },
+  grains(kit, n, seed) {
+    const r = kit.rng(seed), list = Array.from({ length: n }, () => ({ at: r(), j: r() - 0.5, s: 5 + r() * 6 }));
+    return {
+      markup: '<g class="grains">' + list.map(() => '<circle style="fill:var(--accent)"/>').join('') + '</g>',
+      bind(g) { list.forEach((p, i) => { p.el = g.children[i]; p.el.setAttribute('r', p.s.toFixed(1)); }); },
+      list,
+    };
+  },
+};
+})();
+</script>
+<script>
+(function () {
+const { seg, eo, eio, lerp, TextFx } = kit;
+kit.scene('title', {
+  init(kit) {
+    const hatch = Array.from({ length: 40 }, (_, i) => 'M' + (220 + i * 40) + ' 880 l-24 26').join(' ');
+    kit.stage.append(kit.h('<div class="ground">' +
+      '<svg class="art title-art" viewBox="0 0 1920 1080"><path class="ln" d="M200 880 H1840"/><path class="ln" style="stroke-width:1.5;opacity:.5" d="' + hatch + '"/>' +
+        '<g class="title-bot" transform="translate(1180 680) scale(1.7)">' + W.dog('title-dog', { bucket: true, blade: true }) + '</g>' +
+        '<path class="hotln title-la" d="M1415 357 L1500 300 H1630"/><path class="hotln title-lb" d="M1078 862 L980 940 H930"/>' +
+        W.dim(831, 960, 1598, 960).replace('class="ln"', 'class="ln title-dim"') + '</svg>' +
+      '<div class="words" style="left:110px;top:90px;width:1700px"><p class="step title-step">팀 설명용 청사진</p><h1 class="line title-line">MechDog 작업 부착물</h1><p class="sub title-sub">등 위 버켓으로 운반하고, 배 아래 블레이드로 바닥을 고른다</p></div>' +
+      '<div class="tag hot title-ta" style="left:1640px;top:274px">A · 버켓 (등 위)</div>' +
+      '<div class="tag hot title-tb" style="right:996px;top:912px">B · 블레이드 (배 아래)</div>' +
+      '<div class="sheet"><div>dogistics · MechDog 부착물</div><div>SHEET 0 · 개요</div></div></div>'));
+    const q = (s) => kit.stage.querySelector(s);
+    this.rig = W.rig(q('.title-dog'), 'title-dog');
+    Object.assign(this, { art: q('.title-art'), bot: q('.title-bot'), la: q('.title-la'), lb: q('.title-lb'), ta: q('.title-ta'), tb: q('.title-tb'),
+      line: q('.title-line'), sub: q('.title-sub'), step: q('.title-step'), dim: q('.title-dim') });
+    [this.la, this.lb].forEach((p) => { p.setAttribute('pathLength', '1'); p.style.strokeDasharray = '1'; });
+  },
+  render(t) {
+    const reveal = eio(seg(t, -0.7, 1.3));
+    this.art.style.clipPath = 'inset(0 ' + ((1 - reveal) * 100).toFixed(2) + '% 0 0)';
+    this.art.style.transform = 'scale(' + lerp(1, 1.025, eio(seg(t, 0, 3.5))) + ')';
+    this.rig.pose(t, 0);
+    this.rig.level(0.55);
+    this.bot.setAttribute('transform', 'translate(1180 ' + (680 - 2 * Math.sin(t * 2.1)).toFixed(2) + ') scale(1.7)');
+    this.la.style.strokeDashoffset = 1 - eo(seg(t, 1.0, 1.5));
+    this.lb.style.strokeDashoffset = 1 - eo(seg(t, 1.3, 1.8));
+    this.ta.style.opacity = eo(seg(t, 1.4, 1.8));
+    this.tb.style.opacity = eo(seg(t, 1.7, 2.1));
+    this.dim.style.opacity = 0.7 * eo(seg(t, 1.9, 2.4));
+    this.step.style.opacity = 1;
+    TextFx.fadeFromRight(this.line, t, -0.6);
+    this.sub.style.opacity = eo(seg(t, 0.3, 0.9));
+    this.sub.style.transform = 'translateX(' + lerp(26, 0, eo(seg(t, 0.3, 0.9))) + 'px)';
+  },
+});
+})();
+</script>
+<script>
+(function () {
+const { seg, eo, ei, eio, lerp, clamp01, TextFx } = kit;
+kit.scene('hopper', {
+  init(kit) {
+    const hop = 'M860 30 H1140 V110 L1025 210 H975 L860 110 Z';
+    const hatch = Array.from({ length: 42 }, (_, i) => 'M' + (160 + i * 40) + ' 829 l-24 26').join(' ');
+    this.gr = W.grains(kit, 26, 7);
+    kit.stage.append(kit.h('<div class="ground">' +
+      '<svg class="art hopper-art" viewBox="0 0 1920 1080">' +
+        '<path class="dash" d="M872 110 L820 829 M1128 110 L1180 829 M846 470 H1154" style="opacity:.55"/>' +
+        '<path class="ln" d="M120 829 H1840"/><path class="ln" style="stroke-width:1.5;opacity:.5" d="' + hatch + '"/>' +
+        '<g class="hopper-bin"><defs><clipPath id="hopper-clip"><path d="' + hop + '"/></clipPath></defs>' +
+          '<path class="solid" d="' + hop + '"/><rect class="hopper-stock" clip-path="url(#hopper-clip)" x="850" y="50" width="300" height="200" style="fill:var(--accent)"/>' +
+          '<path class="ln" d="' + hop + '"/><path class="ln" d="M860 110 H1140" style="stroke-width:1.5;opacity:.6"/></g>' +
+        '<rect class="solid hopper-gate" x="960" y="212" width="80" height="12"/>' +
+        this.gr.markup +
+        '<g class="hopper-bot">' + W.dog('hopper-dog', { bucket: true }) + '</g>' +
+        W.dim(1262, 224, 1262, 336) + '</svg>' +
+      '<div class="tag hopper-tg" style="left:1156px;top:140px">게이트 (열림 / 닫힘)</div>' +
+      '<div class="tag hot hopper-td" style="left:1296px;top:256px">내리는 높이는 짧게 (튀 방지)</div>' +
+      '<div class="words" style="left:110px;bottom:46px;width:1280px"><p class="step">① 호퍼에서 받기</p><h2 class="line hopper-line" style="font-size:56px">호퍼 아래에 서면 게이트가 열린다</h2><p class="sub hopper-sub" style="font-size:30px">재료가 등 위 버켓으로 바로 떨어지고, 다 차면 닫고 출발</p></div>' +
+      '<div class="sheet"><div>dogistics · MechDog 부착물</div><div>SHEET 1 · 호퍼 투입</div></div></div>'));
+    const q = (s) => kit.stage.querySelector(s);
+    this.gr.bind(q('.grains'));
+    this.rig = W.rig(q('.hopper-dog'), 'hopper-dog');
+    Object.assign(this, { art: q('.hopper-art'), bot: q('.hopper-bot'), gate: q('.hopper-gate'), stock: q('.hopper-stock'),
+      tg: q('.hopper-tg'), td: q('.hopper-td'), line: q('.hopper-line'), sub: q('.hopper-sub') });
+  },
+  render(t) {
+    this.art.style.transform = 'scale(' + lerp(1, 1.02, eio(seg(t, 0, 7.5))) + ')';
+    const inP = eio(seg(t, -0.3, 1.9)), outP = ei(seg(t, 6.3, 7.6));
+    const x = lerp(420, 1000, inP) + 700 * outP, walk = (t < 2.0 || t > 6.2) ? 1 : 0;
+    const bob = walk ? 4 * Math.abs(Math.sin(t * Math.PI * 3.4)) : 0;
+    this.bot.setAttribute('transform', 'translate(' + x.toFixed(1) + ' ' + (640 - bob).toFixed(1) + ') scale(1.6)');
+    this.rig.pose(t, walk * (t < 2.0 ? 1 - seg(t, 1.6, 2.0) : seg(t, 6.2, 6.5)));
+    const v = 0.85 * eio(seg(t, 2.3, 5.8));
+    this.rig.level(v);
+    const open = eo(seg(t, 1.9, 2.3)) * (1 - eo(seg(t, 5.5, 5.9)));
+    this.gate.setAttribute('x', (960 + 70 * open).toFixed(1));
+    this.stock.setAttribute('y', (50 + 110 * eio(seg(t, 2.2, 5.8))).toFixed(1));
+    const ys = 640 + 1.6 * (-78 - v * 104) - 10, P = 0.42;
+    for (const p of this.gr.list) {
+      const k = Math.floor((t - p.at * P) / P), qq = (t - p.at * P) / P - k, born = t - qq * P;
+      const on = born > 2.05 && born < 5.5;
+      p.el.style.opacity = on ? 1 : 0;
+      p.el.setAttribute('cx', (1000 + p.j * 34 + p.j * 40 * qq).toFixed(1));
+      p.el.setAttribute('cy', (226 + (ys - 226) * qq * qq).toFixed(1));
+    }
+    this.tg.style.opacity = eo(seg(t, 1.6, 2.0));
+    this.td.style.opacity = eo(seg(t, 2.8, 3.2));
+    TextFx.fadeFromRight(this.line, t, 0.2);
+    this.sub.style.opacity = eo(seg(t, 1.2, 1.7));
+  },
+});
+})();
+</script>
+<script>
+(function () {
+const { seg, eo, eio, lerp, TextFx } = kit;
+kit.scene('chute', {
+  init(kit) {
+    const hatch = Array.from({ length: 42 }, (_, i) => 'M' + (160 + i * 40) + ' 829 l-24 26').join(' ');
+    this.gr = W.grains(kit, 30, 11);
+    const inGr = [[1610, 282], [1632, 290], [1656, 292], [1680, 288], [1700, 278], [1620, 266], [1646, 272], [1672, 270], [1694, 262], [1636, 252], [1662, 254], [1684, 248]]
+      .map(([x, y]) => '<circle cx="' + x + '" cy="' + y + '" r="10" style="fill:var(--accent)"/>').join('');
+    kit.stage.append(kit.h('<div class="ground">' +
+      '<svg class="art chute-art" viewBox="0 0 1920 1080">' +
+        '<path class="dash" d="M700 82 V829 M960 240 V829" style="opacity:.5"/>' +
+        '<path class="ln" d="M120 829 H1840"/><path class="ln" style="stroke-width:1.5;opacity:.5" d="' + hatch + '"/>' +
+        '<path class="solid" d="M470 -60 H660 V-10 L610 20 H530 Z"/>' +
+        '<g class="chute-trough"><path class="solid" d="M580 10 L1060 300 L1080.7 265.8 L600.7 -24.2 Z"/><path class="ln" d="M580 10 L1060 300" style="stroke-width:5"/>' +
+          '<path class="ln" d="M590 -7 L1070 283" style="stroke-width:1.5;opacity:.6"/></g>' +
+        '<g class="chute-angle"><path class="dash" d="M580 10 H790"/><path class="hotln" d="M750 10 A170 170 0 0 1 725.7 97.6"/></g>' +
+        '<g class="chute-cut"><path class="hotln" d="M804 181 L856 95" style="stroke-width:4"/><path class="dash" d="M860 92 L1500 200" style="stroke:var(--accent)"/></g>' +
+        this.gr.markup +
+        '<g class="chute-bot" transform="translate(1180 640) scale(1.6)">' + W.dog('chute-dog', { bucket: true }) + '</g>' +
+        '<g class="chute-inset"><circle cx="1650" cy="230" r="150" class="solid" style="fill:var(--ground)"/>' + inGr +
+          '<path class="ln" d="M1580 150 V230 Q1580 304 1655 304 Q1730 304 1730 230 V150" style="stroke-width:7"/>' +
+          W.dim(1580, 140, 1730, 140) + '</g></svg>' +
+      '<div class="tag hot chute-ta" style="left:250px;top:120px">경사 약 30° 이상</div>' +
+      '<div class="tag chute-tb" style="left:1520px;top:400px">단면: U자 홈</div>' +
+      '<div class="words" style="left:110px;bottom:46px;width:1280px"><p class="step">② U자 슈트로 흘려 보내기</p><h2 class="line chute-line" style="font-size:56px">비스듬한 U자 판으로 버켓까지 미끄러뜨린다</h2><p class="sub chute-sub" style="font-size:30px">U자 단면이 재료를 가운데로 모아 옆으로 새지 않는다</p></div>' +
+      '<div class="sheet"><div>dogistics · MechDog 부착물</div><div>SHEET 2 · U자 슈트</div></div></div>'));
+    const q = (s) => kit.stage.querySelector(s);
+    this.gr.bind(q('.grains'));
+    this.rig = W.rig(q('.chute-dog'), 'chute-dog');
+    Object.assign(this, { art: q('.chute-art'), inset: q('.chute-inset'), cut: q('.chute-cut'), ang: q('.chute-angle'), ta: q('.chute-ta'), tb: q('.chute-tb'),
+      line: q('.chute-line'), sub: q('.chute-sub') });
+  },
+  render(t) {
+    this.art.style.transform = 'scale(' + lerp(1.0, 1.025, eio(seg(t, 0, 7))) + ')';
+    this.rig.pose(t, 0);
+    const v = lerp(0.15, 0.82, eio(seg(t, 1.2, 6.4)));
+    this.rig.level(v);
+    const ys = 640 + 1.6 * (-78 - v * 104) - 10, P = 0.9;
+    for (const p of this.gr.list) {
+      const qq = (((t - p.at * P) / P) % 1 + 1) % 1, born = t - qq * P;
+      p.el.style.opacity = born > -0.2 && born < 5.6 ? 1 : 0;
+      let x, y;
+      if (qq < 0.72) {
+        const s = Math.pow(qq / 0.72, 1.4);
+        x = lerp(580, 1060, s) + 10 * 0.517 + p.j * 8; y = lerp(10, 300, s) - 10 * 0.856 - p.j * 6;
+      } else {
+        const f = (qq - 0.72) / 0.28;
+        x = 1066 + 70 * f + p.j * 30 * f; y = 292 + (ys - 292) * f * f;
+      }
+      p.el.setAttribute('cx', x.toFixed(1)); p.el.setAttribute('cy', y.toFixed(1));
+    }
+    this.ang.style.opacity = eo(seg(t, 1.0, 1.5));
+    this.ta.style.opacity = eo(seg(t, 1.2, 1.6));
+    this.cut.style.opacity = eo(seg(t, 2.4, 2.9));
+    const pop = eo(seg(t, 2.8, 3.5));
+    this.inset.style.opacity = pop;
+    this.inset.style.transformOrigin = '1650px 230px';
+    this.inset.style.transform = 'scale(' + lerp(0.6, 1, pop) * (1 + 0.01 * Math.sin(t * 2)) + ')';
+    this.tb.style.opacity = eo(seg(t, 3.3, 3.8));
+    TextFx.fadeFromRight(this.line, t, 0.2);
+    this.sub.style.opacity = eo(seg(t, 1.3, 1.8));
+  },
+});
+})();
+</script>
+<script>
+(function () {
+const { seg, eo, eio, lerp, TextFx } = kit;
+kit.scene('grader', {
+  init(kit) {
+    kit.stage.append(kit.h('<div class="ground">' +
+      '<svg class="art grader-art" viewBox="0 0 1920 1080">' +
+        '<path class="grader-soil" style="fill:color-mix(in srgb, var(--accent) 28%, var(--ground))"/>' +
+        '<path class="grader-surf" style="fill:none;stroke:var(--accent);stroke-width:4;stroke-linejoin:round"/>' +
+        '<path class="grader-flat" style="fill:none;stroke:var(--second);stroke-width:4"/>' +
+        '<path class="dash" d="M100 789 H1860" style="opacity:.45"/>' +
+        '<g class="grader-bot">' + W.dog('grader-dog', { blade: true }) + '</g>' +
+        '<g class="grader-top"><rect x="1430" y="60" width="420" height="270" class="solid" style="fill:var(--ground)"/>' +
+          '<rect x="1540" y="150" width="220" height="90" rx="14" class="solid"/><rect x="1760" y="165" width="46" height="60" rx="8" class="solid"/>' +
+          [[1570, 140], [1570, 250], [1730, 140], [1730, 250]].map(([x, y]) => '<circle cx="' + x + '" cy="' + y + '" r="12" class="solid"/>').join('') +
+          '<path d="M1612 126 L1688 264" style="stroke:var(--accent);stroke-width:10;stroke-linecap:round"/>' +
+          '<path class="hotln grader-arrow" d="M1700 290 Q1690 312 1660 318 M1660 318 l12 -12 M1660 318 l14 8"/>' +
+          '<path class="ln" d="M1470 300 H1530 M1530 300 l-12 -8 M1530 300 l-12 8"/></g></svg>' +
+      '<div class="tag grader-tt" style="left:1430px;top:346px">위에서 본 모습: 날을 비스듬히</div>' +
+      '<div class="tag hot grader-th" style="top:880px">날 높이 = 지면 (나사로 조절)</div>' +
+      '<div class="tag grader-ta" style="left:1440px;top:880px">울퉁불퉁한 바닥</div>' +
+      '<div class="tag grader-tf" style="left:140px;top:880px">평평해진 면</div>' +
+      '<div class="words" style="left:110px;top:70px;width:1260px"><p class="step">③ 배 아래 블레이드로 고르기</p><h2 class="line grader-line" style="font-size:56px">그레이더처럼 배 아래 날이 바닥을 편다</h2><p class="sub grader-sub" style="font-size:30px">앞이 아니라 다리 사이에 달아, 지나간 자리가 평평해진다</p></div>' +
+      '<div class="sheet"><div>dogistics · MechDog 부착물</div><div>SHEET 3 · 그라운드 레벨링</div></div></div>'));
+    const q = (s) => kit.stage.querySelector(s);
+    this.rig = W.rig(q('.grader-dog'), 'grader-dog');
+    Object.assign(this, { art: q('.grader-art'), bot: q('.grader-bot'), soil: q('.grader-soil'), surf: q('.grader-surf'), flat: q('.grader-flat'),
+      top: q('.grader-top'), arrow: q('.grader-arrow'), tt: q('.grader-tt'), th: q('.grader-th'), ta: q('.grader-ta'), tf: q('.grader-tf'),
+      line: q('.grader-line'), sub: q('.grader-sub') });
+  },
+  render(t) {
+    const G = 789, mv = eio(seg(t, 0.2, 7.5)), x = lerp(300, 1480, mv), walk = mv > 0 && mv < 1 ? 1 : 0;
+    const bob = 4 * Math.abs(Math.sin(t * Math.PI * 3.4)) * walk;
+    this.art.style.transform = 'scale(' + lerp(1, 1.02, eio(seg(t, 0, 8))) + ')';
+    this.bot.setAttribute('transform', 'translate(' + x.toFixed(1) + ' ' + (600 - bob).toFixed(1) + ') scale(1.6)');
+    this.rig.pose(t, walk);
+    const bx = x + 80, pile = 10 + 20 * seg(t, 0.3, 3);
+    const bump = (X) => 10 + 9 * Math.sin(X / 41) + 8 * Math.sin(X / 97 + 1.3);
+    let d = '';
+    for (let X = 100; X <= 1860; X += 10) {
+      let y = G;
+      if (X >= bx) {
+        const f = (X - bx) / 70, berm = f < 1 ? pile * Math.sqrt(1 - f) : 0;
+        y = G - Math.max(bump(X), berm);
+      }
+      d += (X === 100 ? 'M' : ' L') + X + ' ' + y.toFixed(1);
+    }
+    this.surf.setAttribute('d', d);
+    this.soil.setAttribute('d', d + ' L1860 860 L100 860 Z');
+    this.flat.setAttribute('d', 'M100 ' + G + ' H' + Math.max(100, bx - 8).toFixed(1));
+    this.top.style.opacity = eo(seg(t, 1.6, 2.2));
+    this.tt.style.opacity = eo(seg(t, 1.9, 2.4));
+    this.arrow.style.opacity = 0.5 + 0.5 * Math.sin(t * 3);
+    this.th.style.left = (x - 150).toFixed(1) + 'px';
+    this.th.style.opacity = eo(seg(t, 0.8, 1.3));
+    this.ta.style.opacity = 1 - eo(seg(t, 3.6, 4.2));
+    this.tf.style.opacity = eo(seg(t, 4.4, 4.9));
+    TextFx.fadeFromRight(this.line, t, 0.2);
+    this.sub.style.opacity = eo(seg(t, 1.2, 1.7));
+  },
+});
+})();
+</script>
+<script>
+(function () {
+const { seg, eo, eio, lerp } = kit;
+kit.scene('end', {
+  init(kit) {
+    const hatch = Array.from({ length: 22 }, (_, i) => 'M' + (1000 + i * 40) + ' 777 l-24 26').join(' ');
+    kit.stage.append(kit.h('<div class="ground">' +
+      '<svg class="art end-art" viewBox="0 0 1920 1080"><path class="ln" d="M980 777 H1860"/><path class="ln" style="stroke-width:1.5;opacity:.5" d="' + hatch + '"/>' +
+        '<g class="end-bot" transform="translate(1400 600) scale(1.5)">' + W.dog('end-dog', { bucket: true, blade: true }) + '</g></svg>' +
+      '<div class="words" style="left:110px;top:120px;width:860px;gap:30px"><h2 class="line">세 가지 작업 방식</h2>' +
+        '<p class="sub end-r" style="color:var(--second)">① 호퍼 아래에 서서 버켓에 받기</p>' +
+        '<p class="sub end-r" style="color:var(--second)">② U자 슈트로 흘려서 받기</p>' +
+        '<p class="sub end-r" style="color:var(--second)">③ 배 아래 블레이드로 바닥 고르기</p>' +
+        '<p class="sub end-n" style="font-size:28px">다음: 버켓·블레이드 크기와 무게를 MechDog 하중에 맞춰 정하기</p></div>' +
+      '<div class="sheet"><div>dogistics · MechDog 부착물</div><div>SHEET 4 · 정리</div></div></div>'));
+    const q = (s) => kit.stage.querySelector(s);
+    this.rig = W.rig(q('.end-dog'), 'end-dog');
+    this.rows = Array.from(kit.stage.querySelectorAll('.end-r'));
+    Object.assign(this, { art: q('.end-art'), bot: q('.end-bot'), note: q('.end-n') });
+  },
+  render(t) {
+    this.art.style.transform = 'scale(' + lerp(1.0, 1.02, eio(seg(t, 0, 4))) + ')';
+    this.rig.pose(t, 0);
+    this.rig.level(0.7);
+    this.bot.setAttribute('transform', 'translate(1400 ' + (600 - 2 * Math.sin(t * 2.1)).toFixed(2) + ') scale(1.5)');
+    this.rows.forEach((r, i) => {
+      const p = eo(seg(t, 0.2 + i * 0.3, 0.7 + i * 0.3));
+      r.style.opacity = p;
+      r.style.transform = 'translateX(' + lerp(28, 0, p).toFixed(1) + 'px)';
+    });
+    this.note.style.opacity = eo(seg(t, 1.4, 1.9));
+  },
+});
+})();
+</script>
+<script>FilmPlayer({"scenes": [{"id": "title", "name": "부착물 개요", "dur": 3.5}, {"id": "hopper", "name": "호퍼 투입", "dur": 7.5}, {"id": "chute", "name": "U자 슈트", "dur": 7}, {"id": "grader", "name": "그라운드 레벨링", "dur": 8}, {"id": "end", "name": "정리", "dur": 4}]});</script>
+</body>
+</html>

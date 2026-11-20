@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>호퍼 적재소</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+:root { --bg:#0E1B2C; --panel:#152639; --ink:#E8EEF4; --muted:#A9B7C6; --rule:#2A4058; --accent:#FFC233; }
+body { margin:0; background:var(--bg); color:var(--ink); font-family:"Noto Sans KR", system-ui, sans-serif; line-height:1.7; }
+.page { max-width:880px; margin:0 auto; padding:32px 16px 56px; display:flex; flex-direction:column; gap:28px; }
+h1 { font-size:32px; margin:0; } h2 { font-size:20px; margin:0; }
+p { margin:0; } .muted { color:var(--muted); font-size:14px; }
+a { color:var(--accent); }
+ol { margin:0; padding-left:1.3em; } li + li { margin-top:4px; }
+.cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; }
+.card { background:var(--panel); border:1px solid var(--rule); border-radius:6px; padding:16px; display:flex; flex-direction:column; gap:6px; text-decoration:none; color:var(--ink); }
+.card:hover, .card:focus-visible { border-color:var(--accent); outline:none; }
+.card b { color:var(--accent); font-size:17px; } .card span { color:var(--muted); font-size:14px; }
+table { border-collapse:collapse; width:100%; font-size:15px; }
+td { padding:8px 10px; border-bottom:1px solid var(--rule); vertical-align:top; } td:first-child { color:var(--muted); width:42%; }
+</style>
+</head>
+<body>
+<div class="page">
+  <p class="muted"><a href="../">← 관제 대시보드 데모</a> · dogistics · Part A · 2026-11-20</p>
+  <header style="display:flex;flex-direction:column;gap:10px">
+    <h1>호퍼 적재소</h1>
+    <p>MechDog 등에 단 버켓으로 재료(쌀)를 받는 방법입니다. 모터와 전기 없이, 로봇이 일어서는 힘으로 호퍼 마개를 엽니다.</p>
+  </header>
+
+  <section style="display:flex;flex-direction:column;gap:12px">
+    <h2>동작</h2>
+    <ol>
+      <li>로봇이 엎드린 채 양옆 상자 사이로 들어와 막대 밑을 지나갑니다.</li>
+      <li>일어서면 버켓 바닥이 막대를 밀어 올리고, 병목의 공이 들리며 쌀이 버켓으로 떨어집니다.</li>
+      <li>그대로 앞으로 걸어 나가면 막대가 버켓 뒤쪽으로 빠지고, 공이 다시 앉아 저절로 닫힙니다. 앞은 막지 않는 통과형입니다.</li>
+    </ol>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:12px">
+    <h2>영상과 문서</h2>
+    <div class="cards">
+      <a class="card" href="film-prototype.html"><b>시제품 영상</b><span>옆·위·앞에서 본 동작, 약 46초</span></a>
+      <a class="card" href="film-open-methods.html"><b>여는 방법 비교</b><span>로봇이 밀기 · 모터 드럼 · 카메라, 약 30초</span></a>
+      <a class="card" href="film-concepts.html"><b>부착물 구상</b><span>호퍼 받기 · U자 슈트 · 배 아래 블레이드, 약 30초</span></a>
+      <a class="card" href="design.html"><b>설계 초안</b><span>호퍼 선택, 현장 배치, 구조, 실측 목록</span></a>
+    </div>
+    <p class="muted">영상은 브라우저에서 바로 그리는 애니메이션입니다. 소리는 없습니다.</p>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:12px">
+    <h2>현재 수치 (시제품 실측)</h2>
+    <table>
+      <tr><td>로봇 등 높이</td><td>엎드림 8.5 cm · 일어섬 11.5 cm</td></tr>
+      <tr><td>호퍼 받침 높이</td><td>18.5 cm (나무 걸침대 0.5 cm 포함). 20.5 cm에서는 1.5 cm 모자라 공이 들리지 않았음</td></tr>
+      <tr><td>막대 끝 높이</td><td>약 11 cm</td></tr>
+      <tr><td>양옆 상자 안쪽 간격</td><td>24 cm (로봇 폭 12.6 cm의 약 2배)</td></tr>
+      <tr><td>걸침대</td><td>30 cm 이상 2개 (일회용 젓가락 약 21 cm는 짧음)</td></tr>
+      <tr><td>호퍼 · 마개 · 막대</td><td>페트병 윗부분 · 스펀지 공 · 볼펜대</td></tr>
+      <tr><td>버켓</td><td>종이 상자 쟁반. 앞벽은 낮게, 뒤쪽은 터 둠</td></tr>
+    </table>
+  </section>
+</div>
+</body>
+</html>
